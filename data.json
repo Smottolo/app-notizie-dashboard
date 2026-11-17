@@ -7,7 +7,7 @@
     "Test",
     "Lancio"
   ],
-  "updatedAt": "2026-11-17T17:13:06.082Z",
+  "updatedAt": "2026-11-17T17:36:00.685Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "files": [
     {
@@ -15,7 +15,7 @@
       "n": 1,
       "name": "Argomenti",
       "branch": "Notizie",
-      "status": "done"
+      "status": "todo"
     },
     {
       "id": "f2",
