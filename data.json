@@ -7,7 +7,7 @@
     "Test",
     "Lancio"
   ],
-  "updatedAt": "2026-11-17T17:13:02.423Z",
+  "updatedAt": "2026-11-17T17:13:06.082Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "files": [
     {
@@ -123,13 +123,7 @@
       "status": "todo"
     }
   ],
-  "tasks": [
-    {
-      "id": "t20261117prova",
-      "text": "Prova da una chat Claude: eliminami dall'iPhone",
-      "done": true
-    }
-  ],
+  "tasks": [],
   "open": [
     {
       "id": "o1",
