@@ -7,7 +7,7 @@
     "Test",
     "Lancio"
   ],
-  "updatedAt": "2026-11-17T17:06:19.863Z",
+  "updatedAt": "2026-11-17T17:06:23.166Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "files": [
     {
@@ -15,7 +15,7 @@
       "n": 1,
       "name": "Argomenti",
       "branch": "Notizie",
-      "status": "todo"
+      "status": "doing"
     },
     {
       "id": "f2",
@@ -57,7 +57,7 @@
       "n": 7,
       "name": "Identità visiva",
       "branch": "App › Stile e design",
-      "status": "doing"
+      "status": "todo"
     },
     {
       "id": "f8",
