@@ -160,7 +160,7 @@
     const sync = status.mode === "local" ? "Modalità locale (non salva)"
       : status.saving ? "Salvataggio…"
       : status.pending ? "Modifiche da salvare…"
-      : status.lastSync ? "Salvato ✓" : "";
+      : status.lastSync ? (status.canWrite ? "Salvato ✓" : "Aggiornato ✓") : "";
     $("#sync").textContent = sync;
     $("#banner").innerHTML = status.error
       ? `<div class="banner">${esc(status.error)} <button data-action="${status.error.includes("token") || status.error.includes("Token") ? "settings" : "retry"}">${status.error.toLowerCase().includes("token") ? "Impostazioni" : "Riprova"}</button></div>`
