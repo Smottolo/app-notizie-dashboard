@@ -9,10 +9,13 @@ Ogni push su `main` va online in circa un minuto.
 | File | Proprietario | Note |
 |---|---|---|
 | `js/ui.js` | **interfaccia: tuo** | riscrivibile, rispettando il contratto qui sotto |
+| `js/ui/model.js` | **interfaccia: tuo** | letture comode su `Store.data` + azioni; nessun dato proprio |
 | `css/style.css` | **interfaccia: tuo** | |
 | `index.html` | **interfaccia: tuo** | mantieni l'ordine degli script e `<div id="app">` |
 | `js/store.js`, `js/config.js`, `js/main.js` | infrastruttura | non modificare senza chiedere |
 | `data.json` | dati veri | non modificarlo per fare prove (vedi "Sviluppo in locale") |
+| `img/lavagna.jpg` | interfaccia | anteprima statica della lavagna: si aggiorna sostituendo l'immagine |
+| `uploads/` | dati veri | file caricati dalla dashboard (repo **pubblico**: sono pubblici) |
 | `scripts/`, `.github/`, `docs/` | infrastruttura | |
 
 Se puoi dividere la UI in più file (es. `js/ui/*.js`), aggiungili in `index.html` **prima** di `js/main.js`.
@@ -29,14 +32,19 @@ window.UI = {
 ```
 
 - `data` è lo stato corrente (vedi struttura in `docs/ISTRUZIONI-CHAT-CLAUDE.md`). **Sola lettura.**
-- `status` = `{ mode: "github"|"local", saving, pending, error, lastSync, lastSaved, canWrite }`.
+- `status` = `{ mode: "github"|"local", saving, uploading, pending, error, lastSync, lastSaved, canWrite }`.
 - Quando cambi CSS/JS, incrementa `?v=` negli URL in `index.html` (Pages tiene i file in cache 10 minuti).
-- Per modificare i dati usa **solo** le azioni di `window.Store` (salvano da sole, con merge sicuro):
-  `setPhase(name)`, `cycleFileStatus(id)`, `setFileStatus(id, s)`,
-  `addItem(list, text)`, `toggleItem(list, id)`, `editItem(list, id, text)`, `removeItem(list, id) → undo()`,
-  `addDecision(text, date?)`, `editDecision(id, {text, date})`, `removeDecision(id) → undo()`,
-  `hasToken()`, `setToken(t)`, `clearToken()`, `checkToken() → Promise<{ok, error}>`, `refresh()`, `flush()`.
-  (`list` = `"tasks"` | `"open"` | `"ideas"`).
+- Per modificare i dati usa **solo** le azioni di `window.Store` (salvano da sole, con merge sicuro;
+  le `remove…` ritornano `undo()`). L'elenco completo è in testa a `js/store.js`:
+  - in comune: `addItem/toggleItem/editItem/removeItem(list, …)` (`list` = `"tasks"` | `"open"` | `"ideas"`),
+    `addDecision/editDecision/removeDecision`;
+  - traguardi: `setProgress(areaId, n)`, `setLaunched(bool)`, `setMilestones(areaId, [{id?, name}])`;
+  - gruppi: `addGroup`, `renameGroup`, `removeGroup`, `moveBlock(areaId, key, dir)`;
+  - attività: `addActivity`, `editActivity(id, patch)`, `removeActivity`, `setActivityStatus`, `setNote`;
+  - dentro un'attività: `addSub/editSub/removeSub(id, sub, …)` (`sub` = `"tasks"` | `"open"` | `"decisions"` | `"files"`),
+    `uploadFiles(id, FileList) → Promise<{ok, errors}>`, `fileUrl(file)`;
+  - token e sync: `hasToken()`, `setToken(t)`, `clearToken()`, `checkToken()`, `refresh()`, `flush()`.
+- L'interfaccia di solito passa da `window.Model` (`js/ui/model.js`), che espone le stesse azioni con nomi comodi.
 - `render` viene chiamata spesso (anche mentre si salva): non ridisegnare i campi di testo che l'utente
   sta usando, o perde il cursore. La versione attuale tiene i form fuori dalle parti ridisegnate.
 - Mai chiamare l'API di GitHub dalla UI, mai salvare dati in `localStorage` (il token lo gestisce lo store).
@@ -47,11 +55,17 @@ Stile Apple: font di sistema (`-apple-system`), card bianche arrotondate, sfondo
 tema chiaro/scuro automatico (`prefers-color-scheme`), responsive (iPhone prima di tutto, poi Mac),
 rispetto delle safe area dell'iPhone, bersagli di tocco ≥ 44px.
 
-Contenuti: riepilogo (file completati x/16 con anello, task aperti, punti da definire, fase attuale);
-barra delle fasi cliccabile; griglia dei 16 file (un tocco: da fare → in corso → fatto) con filtro
-Tutti / Notizie / App (in base all'inizio di `branch`); liste Task, Punti da definire, Idee (aggiungi,
-spunta, modifica, elimina con annulla); registro decisioni (data + testo); link alla lavagna (`boardUrl`);
-impostazioni per inserire il token; indicatore dello stato di salvataggio ed errori.
+La dashboard è una "scrivania" che ricalca la lavagna del progetto (stile approvato dall'utente: va mantenuto):
+- **Timeline**: i traguardi di ogni area in sequenza + il Lancio comune; tocco = raggiunto (con i precedenti),
+  tocco sull'ultimo raggiunto = annulla; foglio "Traguardi" per aggiungere, rinominare, eliminare e
+  riordinare trascinando (maniglia ≡).
+- **Priorità** (barra laterale): tutti i task aperti, per urgenza o per traguardo, filtrabili per area.
+- **Tre aree affiancate** (App, Contenuti, Commerciale) con gruppi (intestazione a cartella, modificabili)
+  e attività; pulsanti "+ Attività" e "+ Gruppo".
+- **Pagina dell'attività** (`#/a/<id>`): chi se ne occupa, stato, orizzonte; task a sinistra, file al centro,
+  decisioni / da decidere / note a destra.
+- **In comune**: task generali, punti da definire, idee, registro decisioni, anteprima della lavagna.
+- Impostazioni per il token; indicatore dello stato di salvataggio ed errori.
 
 ## Sviluppo in locale
 

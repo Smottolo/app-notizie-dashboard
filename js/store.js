@@ -1,39 +1,43 @@
 /*
- * store.js — livello dati della dashboard (INFRASTRUTTURA, non modificare l'API pubblica).
+ * store.js — livello dati della dashboard (INFRASTRUTTURA).
  *
  * - Legge data.json dall'API di GitHub (sempre la versione più recente, non la copia in cache di Pages).
  * - Salva con l'API Contents di GitHub usando il token salvato nel browser.
  * - Ogni modifica è un'operazione (funzione) messa in coda: al salvataggio la coda viene
  *   riapplicata sull'ultima versione remota, così le modifiche fatte nel frattempo dalle chat
  *   di claude.ai non vengono mai sovrascritte. In caso di conflitto (409) riprova da solo.
+ * - I file caricati vanno nel repo, in uploads/<attività>/; data.json tiene solo il riferimento.
+ *   ATTENZIONE: se il repo è pubblico, anche i file caricati lo sono.
+ *
+ * Struttura dei dati (versione 2): vedi docs/ISTRUZIONI-CHAT-CLAUDE.md.
  *
  * API pubblica (window.Store):
- *   Store.data                         -> stato corrente (sola lettura per la UI!)
- *   Store.status                       -> { mode, saving, pending, error, lastSync, lastSaved, canWrite }
- *   Store.subscribe(fn)                -> fn(data, status) a ogni cambiamento; ritorna unsubscribe
- *   Store.init()                       -> Promise, carica i dati
- *   Store.refresh()                    -> ricarica dal repo
- *   Store.setToken(t) / clearToken() / hasToken()
- *   Store.checkToken()                 -> Promise<{ok, login?, error?}>
+ *   Store.data / Store.status / Store.subscribe(fn) / Store.init() / Store.refresh() / Store.flush()
+ *   Store.setToken(t) / clearToken() / hasToken() / checkToken() -> Promise<{ok, error?}>
+ *   Store.fileUrl(file)                      -> URL per aprire un file caricato
  *
- *   Azioni (tutte salvano da sole):
- *   setPhase(name)
- *   cycleFileStatus(fileId)            todo -> doing -> done -> todo
- *   setFileStatus(fileId, status)
- *   addItem(list, text)                list = "tasks" | "open" | "ideas"; ritorna l'id
- *   toggleItem(list, id)
- *   editItem(list, id, text)
- *   removeItem(list, id)               ritorna una funzione undo()
- *   addDecision(text, date?)           date "AAAA-MM-GG" (default oggi); ritorna l'id
- *   editDecision(id, {text?, date?})
- *   removeDecision(id)                 ritorna una funzione undo()
+ *   Azioni (tutte salvano da sole; quelle "remove" ritornano una funzione undo()):
+ *   In comune:   addItem(list, text) · toggleItem(list, id) · editItem(list, id, text) · removeItem(list, id)
+ *                (list = "tasks" | "open" | "ideas")
+ *                addDecision(text, date?) · editDecision(id, {text, date}) · removeDecision(id)
+ *   Traguardi:   setProgress(areaId, n) · setLaunched(bool) · setMilestones(areaId, [{id?, name}])
+ *   Gruppi:      addGroup(areaId, name) · renameGroup(id, name) · removeGroup(id) · moveBlock(areaId, key, dir)
+ *   Attività:    addActivity({area, group, name, owner, hint, until}) · editActivity(id, patch) · removeActivity(id)
+ *                setActivityStatus(id, status) · setNote(id, text)
+ *   Dentro un'attività (sub = "tasks" | "open" | "decisions" | "files"):
+ *                addSub(id, sub, fields) · editSub(id, sub, itemId, patch) · removeSub(id, sub, itemId)
+ *   File:        uploadFiles(id, FileList) -> Promise   (carica nel repo e aggiunge i riferimenti)
  */
 (function () {
   const C = window.APP_CONFIG;
   const TOKEN_KEY = "appNotizie.githubToken";
   const LISTS = ["tasks", "open", "ideas"];
+  const SUBS = ["tasks", "open", "decisions", "files"];
   const STATUSES = ["todo", "doing", "done"];
-  const API = `https://api.github.com/repos/${C.owner}/${C.repo}/contents/${C.dataPath}`;
+  const LAUNCH = "m-launch";
+  const REPO_API = `https://api.github.com/repos/${C.owner}/${C.repo}`;
+  const API = `${REPO_API}/contents/${C.dataPath}`;
+  const MAX_FILE = 25 * 1024 * 1024;
 
   let data = null;
   let remote = null;      // ultima versione remota nota
@@ -41,9 +45,12 @@
   let queue = [];         // [{label, fn}] operazioni non ancora salvate
   let timer = null;
   let saving = false;
+  let uploading = 0;
   let error = null;
   let lastSync = null;
-  let lastSaved = null;   // ultimo salvataggio riuscito su GitHub
+  let lastSaved = null;
+  const localUrls = new Map();      // modalità locale: id file -> object URL
+  const pendingDeletes = new Map(); // percorso file -> momento in cui è stato tolto
   const subs = new Set();
 
   // ---------- utilità ----------
@@ -57,12 +64,12 @@
     const bin = atob(b64.replace(/\s/g, ""));
     return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
   };
-  const b64encode = (str) => {
-    const bytes = new TextEncoder().encode(str);
+  const b64encode = (str) => b64bytes(new TextEncoder().encode(str));
+  function b64bytes(bytes) {
     let bin = "";
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(bin);
-  };
+  }
   const safeStorage = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
@@ -73,7 +80,8 @@
   function status() {
     return {
       mode: C.localMode ? "local" : "github",
-      saving,
+      saving: saving || uploading > 0,
+      uploading,
       pending: queue.length,
       error,
       lastSync,
@@ -87,11 +95,32 @@
   }
 
   function normalize(d) {
-    d.phases ??= ["Pianificazione", "Progettazione", "Sviluppo", "Test", "Lancio"];
-    d.files ??= [];
+    d.version ??= 2;
+    d.launched ??= false;
+    d.areas ??= [];
+    d.areas.forEach((a) => { a.milestones ??= []; a.order ??= []; a.progress ??= 0; });
+    d.groups ??= [];
+    d.activities ??= [];
+    d.activities.forEach((x) => {
+      SUBS.forEach((s) => (x[s] ??= []));
+      x.note ??= ""; x.status ??= "todo"; x.group ??= ""; x.hint ??= ""; x.until ??= ""; x.owner ??= "Ibrido";
+      if (x.group && !d.groups.some((g) => g.id === x.group && g.area === x.area)) x.group = "";
+    });
     LISTS.forEach((l) => (d[l] ??= []));
     d.decisions ??= [];
+    fixOrder(d);
     return d;
+  }
+  /** l'ordine dei blocchi di ogni area contiene esattamente i suoi gruppi e le sue attività senza gruppo */
+  function fixOrder(d) {
+    for (const a of d.areas) {
+      const valid = (k) => k.startsWith("g:")
+        ? d.groups.some((g) => g.id === k.slice(2) && g.area === a.id)
+        : d.activities.some((x) => x.id === k.slice(2) && x.area === a.id && !x.group);
+      a.order = [...new Set(a.order)].filter(valid);
+      d.groups.filter((g) => g.area === a.id && !a.order.includes("g:" + g.id)).forEach((g) => a.order.push("g:" + g.id));
+      d.activities.filter((x) => x.area === a.id && !x.group && !a.order.includes("a:" + x.id)).forEach((x) => a.order.push("a:" + x.id));
+    }
   }
 
   // ---------- rete ----------
@@ -206,8 +235,94 @@
     schedule();
   }
 
+  // ---------- file caricati ----------
+  const safeName = (n) => n.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.\-]+/g, "-").replace(/-+/g, "-").slice(-80) || "file";
+  const readBytes = (file) => new Promise((ok, ko) => {
+    const fr = new FileReader();
+    fr.onload = () => ok(new Uint8Array(fr.result));
+    fr.onerror = () => ko(new Error(`Impossibile leggere ${file.name}`));
+    fr.readAsArrayBuffer(file);
+  });
+  const isReferenced = (d, path) => d?.activities.some((a) => a.files.some((f) => f.path === path));
+
+  async function uploadOne(actId, file) {
+    if (file.size > MAX_FILE) throw new Error(`«${file.name}» supera i 25 MB.`);
+    const id = newId("u");
+    const rec = { id, name: file.name, size: file.size, type: file.type || "", added: new Date().toISOString() };
+    if (C.localMode) {
+      localUrls.set(id, URL.createObjectURL(file));
+      rec.path = "";
+    } else {
+      if (!token()) throw new Error("Inserisci il token GitHub nelle impostazioni per caricare file.");
+      const path = `uploads/${actId}/${id}-${safeName(file.name)}`;
+      const bytes = await readBytes(file);
+      const r = await fetch(`${REPO_API}/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
+        method: "PUT",
+        headers: { ...headers(true), "Content-Type": "application/json" },
+        body: JSON.stringify({ message: `Dashboard: file caricato ${file.name}`, content: b64bytes(bytes), branch: C.branch }),
+      });
+      if (r.status === 401) throw new Error("Token non valido o scaduto: inseriscilo di nuovo nelle impostazioni.");
+      if (r.status === 403 || r.status === 404) throw new Error("Il token non ha il permesso di scrivere su questo repo.");
+      if (!r.ok) throw new Error(`Caricamento di «${file.name}» non riuscito (GitHub ${r.status}).`);
+      rec.path = path;
+    }
+    apply("file caricato", (d) => { const a = findIn(d.activities, actId); if (a && !findIn(a.files, id)) a.files.push({ ...rec }); });
+  }
+
+  // un file tolto viene cancellato dal repo solo dopo un po' (per lasciare il tempo di annullare)
+  function scheduleDelete(path) {
+    if (!path || C.localMode) return;
+    pendingDeletes.set(path, Date.now());
+    setTimeout(runDeletes, 15000);
+  }
+  async function runDeletes() {
+    if (C.localMode || !token() || !pendingDeletes.size) return;
+    if (queue.length || saving) { setTimeout(runDeletes, 5000); return; }
+    for (const [path, t] of [...pendingDeletes]) {
+      if (Date.now() - t < 12000) continue;
+      pendingDeletes.delete(path);
+      if (isReferenced(data, path) || isReferenced(remote, path)) continue; // ripristinato con "Annulla"
+      try {
+        const url = `${REPO_API}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+        const g = await fetch(`${url}?ref=${C.branch}`, { headers: headers(true), cache: "no-store" });
+        if (!g.ok) continue;
+        const { sha: fileSha } = await g.json();
+        await fetch(url, {
+          method: "DELETE",
+          headers: { ...headers(true), "Content-Type": "application/json" },
+          body: JSON.stringify({ message: `Dashboard: file eliminato ${path.split("/").pop()}`, sha: fileSha, branch: C.branch }),
+        });
+      } catch (e) { console.warn("Eliminazione file non riuscita", path, e); }
+    }
+  }
+
   // ---------- azioni ----------
-  const findIn = (arr, id) => arr.find((x) => x.id === id);
+  const findIn = (arr, id) => (arr || []).find((x) => x.id === id);
+  const areaOf = (d, id) => findIn(d.areas, id);
+  const areaOfMs = (d, msId) => d.areas.find((a) => a.milestones.some((m) => m.id === msId));
+  const msValid = (d, msId, areaId) => !msId || msId === LAUNCH || areaOfMs(d, msId)?.id === areaId;
+  function cleanRefs(d) {
+    for (const act of d.activities) {
+      if (!msValid(d, act.until, act.area)) act.until = "";
+      for (const t of act.tasks) if (!msValid(d, t.milestone, act.area)) t.milestone = "";
+    }
+  }
+  /** mette un'attività al posto giusto: in fondo al suo gruppo, oppure come blocco in fondo all'area */
+  function place(d, act) {
+    if (act.group) {
+      let idx = -1;
+      d.activities.forEach((x, i) => { if (x.group === act.group) idx = i; });
+      d.activities.splice(idx >= 0 ? idx + 1 : d.activities.length, 0, act);
+    } else {
+      d.activities.push(act);
+      const a = areaOf(d, act.area);
+      if (a && !a.order.includes("a:" + act.id)) a.order.push("a:" + act.id);
+    }
+  }
+  function unplace(d, act) {
+    d.activities = d.activities.filter((x) => x.id !== act.id);
+    d.areas.forEach((a) => (a.order = a.order.filter((k) => k !== "a:" + act.id)));
+  }
 
   const Store = {
     get data() { return data; },
@@ -221,7 +336,7 @@
         if (document.visibilityState === "hidden" && queue.length) flush();
       });
       setInterval(() => { if (document.visibilityState === "visible" && !queue.length) refresh(); }, C.refreshEveryMs);
-      window.addEventListener("beforeunload", (e) => { if (queue.length || saving) { e.preventDefault(); e.returnValue = ""; } });
+      window.addEventListener("beforeunload", (e) => { if (queue.length || saving || uploading) { e.preventDefault(); e.returnValue = ""; } });
     },
     refresh,
     flush,
@@ -232,7 +347,7 @@
     async checkToken() {
       if (!token()) return { ok: false, error: "Nessun token inserito." };
       try {
-        const r = await fetch(`https://api.github.com/repos/${C.owner}/${C.repo}`, { headers: headers(true), cache: "no-store" });
+        const r = await fetch(REPO_API, { headers: headers(true), cache: "no-store" });
         if (r.status === 401) return { ok: false, error: "Token non valido o scaduto." };
         if (!r.ok) return { ok: false, error: `Il token non vede il repo (GitHub ${r.status}).` };
         const j = await r.json();
@@ -243,20 +358,14 @@
       }
     },
 
-    setPhase(name) {
-      apply(`fase → ${name}`, (d) => { if (d.phases.includes(name)) d.phase = name; });
-    },
-    setFileStatus(fileId, s) {
-      if (!STATUSES.includes(s)) return;
-      apply(`file ${fileId} → ${s}`, (d) => { const f = findIn(d.files, fileId); if (f) f.status = s; });
-    },
-    cycleFileStatus(fileId) {
-      const f = data && findIn(data.files, fileId);
-      if (!f) return;
-      const next = STATUSES[(STATUSES.indexOf(f.status) + 1) % STATUSES.length];
-      Store.setFileStatus(fileId, next);
+    fileUrl(f) {
+      if (!f) return "";
+      if (localUrls.has(f.id)) return localUrls.get(f.id);
+      if (!f.path) return "";
+      return `https://raw.githubusercontent.com/${C.owner}/${C.repo}/${C.branch}/${f.path.split("/").map(encodeURIComponent).join("/")}`;
     },
 
+    // ---------- in comune ----------
     addItem(list, text) {
       if (!LISTS.includes(list) || !text.trim()) return null;
       const id = newId(list[0]);
@@ -284,7 +393,6 @@
         if (!findIn(d[list], saved.id)) d[list].splice(Math.min(idx, d[list].length), 0, clone(saved));
       });
     },
-
     addDecision(text, date) {
       if (!text.trim()) return null;
       const id = newId("d");
@@ -308,6 +416,203 @@
       return () => apply("decisione ripristinata", (d) => {
         if (!findIn(d.decisions, saved.id)) d.decisions.splice(Math.min(idx, d.decisions.length), 0, clone(saved));
       });
+    },
+
+    // ---------- traguardi ----------
+    setProgress(areaId, n) {
+      apply(`traguardi ${areaId} → ${n}`, (d) => { const a = areaOf(d, areaId); if (a) a.progress = Math.max(0, Math.min(n, a.milestones.length)); });
+    },
+    setLaunched(v) { apply(v ? "lanciato" : "lancio annullato", (d) => { d.launched = !!v; }); },
+    setMilestones(areaId, list) {
+      const a = data && areaOf(data, areaId);
+      if (!a) return;
+      const next = list.filter((m) => m.name?.trim()).map((m) => ({ id: m.id || newId("m"), name: m.name.trim() }));
+      // resta raggiunto solo il prefisso iniziale di traguardi che erano già raggiunti
+      const wasReached = new Set(a.milestones.slice(0, a.progress).map((m) => m.id));
+      let progress = 0;
+      while (progress < next.length && wasReached.has(next[progress].id)) progress++;
+      apply(`traguardi ${a.name} modificati`, (d) => {
+        const x = areaOf(d, areaId);
+        if (!x) return;
+        x.milestones = clone(next);
+        x.progress = progress;
+        cleanRefs(d);
+      });
+    },
+
+    // ---------- gruppi ----------
+    addGroup(areaId, name) {
+      if (!name?.trim()) return null;
+      const g = { id: newId("g"), area: areaId, name: name.trim() };
+      apply(`nuovo gruppo ${g.name}`, (d) => {
+        const a = areaOf(d, areaId);
+        if (!a || findIn(d.groups, g.id)) return;
+        d.groups.push({ ...g });
+        a.order.push("g:" + g.id);
+      });
+      return g.id;
+    },
+    renameGroup(id, name) {
+      if (!name?.trim()) return;
+      apply("gruppo rinominato", (d) => { const g = findIn(d.groups, id); if (g) g.name = name.trim(); });
+    },
+    removeGroup(id) {
+      const g = data && findIn(data.groups, id);
+      if (!g) return () => {};
+      const members = data.activities.filter((a) => a.group === id).map((a) => a.id);
+      const savedGroup = clone(g);
+      const savedOrder = areaOf(data, g.area)?.order.slice() || [];
+      apply(`gruppo ${g.name} eliminato`, (d) => {
+        const a = areaOf(d, g.area);
+        d.groups = d.groups.filter((x) => x.id !== id);
+        const inGroup = d.activities.filter((x) => x.group === id);
+        inGroup.forEach((x) => (x.group = ""));
+        if (a) {
+          const pos = a.order.indexOf("g:" + id);
+          const keys = inGroup.map((x) => "a:" + x.id);
+          if (pos >= 0) a.order.splice(pos, 1, ...keys); else a.order.push(...keys);
+        }
+      });
+      return () => apply(`gruppo ${g.name} ripristinato`, (d) => {
+        if (findIn(d.groups, id)) return;
+        d.groups.push(clone(savedGroup));
+        members.forEach((m) => { const x = findIn(d.activities, m); if (x && !x.group && x.area === g.area) x.group = id; });
+        const a = areaOf(d, g.area);
+        if (a) a.order = savedOrder.slice();
+        fixOrder(d);
+      });
+    },
+    moveBlock(areaId, key, dir) {
+      apply("ordine cambiato", (d) => {
+        const a = areaOf(d, areaId);
+        if (!a) return;
+        const i = a.order.indexOf(key), j = i + dir;
+        if (i < 0 || j < 0 || j >= a.order.length) return;
+        [a.order[i], a.order[j]] = [a.order[j], a.order[i]];
+      });
+    },
+
+    // ---------- attività ----------
+    addActivity({ area, group = "", name, owner = "Ibrido", hint = "", until = "" }) {
+      if (!name?.trim() || !data || !areaOf(data, area)) return null;
+      const act = {
+        id: newId("x"), area, group: group && findIn(data.groups, group)?.area === area ? group : "",
+        name: name.trim(), owner, hint: hint.trim(), until: msValid(data, until, area) ? until : "",
+        status: "todo", note: "", tasks: [], open: [], decisions: [], files: [],
+      };
+      apply(`nuova attività ${act.name}`, (d) => {
+        if (findIn(d.activities, act.id)) return;
+        const x = clone(act);
+        if (x.group && !findIn(d.groups, x.group)) x.group = "";
+        place(d, x);
+      });
+      return act.id;
+    },
+    editActivity(id, patch) {
+      apply("attività modificata", (d) => {
+        const act = findIn(d.activities, id);
+        if (!act) return;
+        const newArea = patch.area && areaOf(d, patch.area) ? patch.area : act.area;
+        let newGroup = patch.group !== undefined ? patch.group : act.group;
+        if (newGroup && findIn(d.groups, newGroup)?.area !== newArea) newGroup = "";
+        if (newArea !== act.area || newGroup !== act.group) {
+          unplace(d, act);
+          act.area = newArea;
+          act.group = newGroup;
+          place(d, act);
+        }
+        if (patch.name?.trim()) act.name = patch.name.trim();
+        if (patch.owner) act.owner = patch.owner;
+        if (patch.hint !== undefined) act.hint = patch.hint.trim();
+        if (patch.until !== undefined) act.until = patch.until;
+        cleanRefs(d);
+      });
+    },
+    removeActivity(id) {
+      const idx = data?.activities.findIndex((a) => a.id === id) ?? -1;
+      if (idx < 0) return () => {};
+      const saved = clone(data.activities[idx]);
+      const area = areaOf(data, saved.area);
+      const pos = area ? area.order.indexOf("a:" + id) : -1;
+      apply(`attività ${saved.name} eliminata`, (d) => { const x = findIn(d.activities, id); if (x) unplace(d, x); });
+      saved.files.forEach((f) => scheduleDelete(f.path));
+      return () => apply(`attività ${saved.name} ripristinata`, (d) => {
+        if (findIn(d.activities, id)) return;
+        const x = clone(saved);
+        if (x.group && !findIn(d.groups, x.group)) x.group = "";
+        d.activities.splice(Math.min(idx, d.activities.length), 0, x);
+        const a = areaOf(d, x.area);
+        if (a && !x.group) a.order.splice(pos >= 0 ? Math.min(pos, a.order.length) : a.order.length, 0, "a:" + id);
+        fixOrder(d);
+      });
+    },
+    setActivityStatus(id, s) {
+      if (!STATUSES.includes(s)) return;
+      apply(`attività ${id} → ${s}`, (d) => { const x = findIn(d.activities, id); if (x) x.status = s; });
+    },
+    setNote(id, text) {
+      // le note scritte di seguito diventano un'unica operazione in coda
+      const last = queue[queue.length - 1];
+      if (last?.noteFor === id && !saving) queue.pop();
+      apply("note modificate", (d) => { const x = findIn(d.activities, id); if (x) x.note = text; });
+      queue[queue.length - 1].noteFor = id;
+    },
+
+    // ---------- dentro un'attività ----------
+    addSub(actId, sub, fields) {
+      if (!SUBS.includes(sub) || sub === "files") return null;
+      const item = { ...fields, id: newId({ tasks: "t", open: "o", decisions: "d" }[sub]) };
+      if (typeof item.text === "string") item.text = item.text.trim();
+      if (!item.text) return null;
+      if (sub === "tasks") Object.assign(item, { priority: item.priority || "media", due: item.due || "", milestone: item.milestone || "", done: false, created: Date.now() });
+      if (sub === "open") item.done = false;
+      if (sub === "decisions") item.date = item.date || today();
+      apply({ tasks: "nuovo task", open: "nuovo punto da decidere", decisions: "nuova decisione" }[sub], (d) => {
+        const a = findIn(d.activities, actId);
+        if (a && !findIn(a[sub], item.id)) a[sub].push(clone(item));
+      });
+      return item.id;
+    },
+    editSub(actId, sub, itemId, patch) {
+      if (!SUBS.includes(sub)) return;
+      const p = { ...patch };
+      if (typeof p.text === "string") { p.text = p.text.trim(); if (!p.text) delete p.text; }
+      const label = "done" in p ? (p.done ? `spuntato in ${sub}` : `riaperto in ${sub}`) : `modificato in ${sub}`;
+      apply(label, (d) => {
+        const x = findIn(findIn(d.activities, actId)?.[sub], itemId);
+        if (x) Object.assign(x, p);
+      });
+    },
+    removeSub(actId, sub, itemId) {
+      const a = data && findIn(data.activities, actId);
+      const idx = a ? a[sub].findIndex((x) => x.id === itemId) : -1;
+      if (idx < 0) return () => {};
+      const saved = clone(a[sub][idx]);
+      apply(`eliminato da ${sub}`, (d) => {
+        const x = findIn(d.activities, actId);
+        if (x) x[sub] = x[sub].filter((y) => y.id !== itemId);
+      });
+      if (sub === "files") scheduleDelete(saved.path);
+      return () => {
+        if (sub === "files" && saved.path) pendingDeletes.delete(saved.path);
+        apply(`ripristinato in ${sub}`, (d) => {
+          const x = findIn(d.activities, actId);
+          if (x && !findIn(x[sub], itemId)) x[sub].splice(Math.min(idx, x[sub].length), 0, clone(saved));
+        });
+      };
+    },
+
+    async uploadFiles(actId, fileList) {
+      const files = [...fileList];
+      const errors = [];
+      uploading += files.length;
+      emit();
+      for (const f of files) {
+        try { await uploadOne(actId, f); }
+        catch (e) { errors.push(e.message); }
+        finally { uploading--; emit(); }
+      }
+      return { ok: files.length - errors.length, errors };
     },
   };
 

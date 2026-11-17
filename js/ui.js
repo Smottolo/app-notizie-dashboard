@@ -1,128 +1,555 @@
 /*
- * ui.js — INTERFACCIA (questo file è di competenza di Claude in VS Code).
+ * ui.js — INTERFACCIA (di competenza di Claude in VS Code).
  *
- * Questa è una versione base, funzionante ma volutamente semplice, che serve a collaudare
- * l'infrastruttura. Può essere riscritta liberamente, rispettando il contratto:
+ * Due viste:
+ *   - Scrivania (#/): Verso il lancio (traguardi), Priorità (per urgenza o per traguardo),
+ *     le tre aree (App, Contenuti, Commerciale) con gruppi e attività, In comune.
+ *   - Pagina attività (#/a/<id>): task a sinistra, file al centro, decisioni / da decidere / note a destra.
  *
- *   window.UI = {
- *     mount(rootEl, store)   // chiamata una volta all'avvio
- *     render(data, status)   // chiamata a ogni cambiamento dei dati o dello stato di salvataggio
- *   }
- *
- * Per modificare i dati usare SOLO le azioni di window.Store (vedi js/store.js):
- * mai modificare `data` direttamente e mai chiamare l'API di GitHub da qui.
+ * Contratto: window.UI = { mount(rootEl, store), render(data, status) }.
+ * I dati si leggono e si modificano tramite window.Model (js/ui/model.js), che usa solo le azioni di window.Store.
+ * render() ridisegna solo i contenitori "vivi": i campi di testo stanno fuori e non perdono il cursore.
  */
 (function () {
   let store, root;
-  let filter = "Tutti";
+  const Model = window.Model;
   let undoTimer;
+  let lastData = null, lastStatus = null;
+  let view = "desk";             // desk | activity
+  let current = null;            // id dell'attività aperta
+  let shownNoteFor = null;       // per non sovrascrivere le note mentre si scrive
+  let deskScroll = 0;
+  let mobileArea = "app";
+  let prioMode = "urgency";      // urgency | milestone
+  let prioFilter = "all";
+  let prioExpanded = false;
+  let editing = null;            // { kind, list?, a?, id }
+  let editingActivity = null;    // id, oppure "new:<area>"
+  let editingGroup = null;       // id, oppure "new:<area>"
+  let msWork = null;             // copia di lavoro dei traguardi nel foglio "Modifica traguardi"
+  let msArea = "app";
 
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const STATUS_LABEL = { todo: "Da fare", doing: "In corso", done: "Fatto" };
-  const LISTS = [
-    { key: "tasks", title: "Task", placeholder: "Nuovo task" },
-    { key: "open", title: "Punti da definire", placeholder: "Nuovo punto da definire" },
-    { key: "ideas", title: "Idee", placeholder: "Nuova idea" },
-  ];
+  // ---------- utilità ----------
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const $ = (sel) => root.querySelector(sel);
   const hhmm = (d) => d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  const parseISO = (iso) => { const [y, m, d] = String(iso).split("-").map(Number); return y && m && d ? new Date(y, m - 1, d) : null; };
+  const fmtDate = (iso, withYear = true) => {
+    const d = parseISO(iso);
+    return d ? d.toLocaleDateString("it-IT", { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) }) : esc(iso);
+  };
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const daysFromToday = (iso) => {
+    const d = parseISO(iso);
+    if (!d) return null;
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    return Math.round((d - t) / 86400000);
+  };
+  const fmtSize = (b) => b < 1024 ? `${b} B` : b < 1048576 ? `${Math.round(b / 1024)} KB` : `${(b / 1048576).toFixed(1).replace(".", ",")} MB`;
 
+  const AREAS = Model.AREAS;
+  const LAUNCH = Model.LAUNCH;
+  const areaById = (id) => AREAS.find((a) => a.id === id);
+  const PRI = { alta: { label: "Alta", rank: 0, bang: "!!!" }, media: { label: "Media", rank: 1, bang: "!!" }, bassa: { label: "Bassa", rank: 2, bang: "!" } };
+  const STATUS = { todo: "Da fare", doing: "In corso", done: "Fatto" };
+  const LISTS = [
+    { key: "tasks", title: "Task generali", placeholder: "Nuovo task generale", empty: "Nessun task generale." },
+    { key: "open", title: "Punti da definire", placeholder: "Nuovo punto da definire", empty: "Niente da definire." },
+    { key: "ideas", title: "Idee", placeholder: "Nuova idea", empty: "Ancora nessuna idea." },
+  ];
+
+  const statusOf = (a) => a.status || "todo";
+  let pendingRoute = false;     // link diretto a un'attività aperto prima che arrivino i dati
+  let noteTimer = null;
+  function flushNote() {
+    clearTimeout(noteTimer);
+    noteTimer = null;
+    const el = root && $("#p-note");
+    if (current && el && shownNoteFor === current && Model.activity(current) && el.value !== Model.activity(current).note) Model.setNote(current, el.value);
+  }
+
+  const ICON = {
+    gear: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    x: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    arrow: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>',
+    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="M13.5 6.5l4 4"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+    board: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 9h6M7 12h10"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M10.5 18.5h3"/></svg>',
+    news: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h13v14H6a2 2 0 0 1-2-2V5Z"/><path d="M17 9h3v8a2 2 0 0 1-2 2M7.5 9h6M7.5 12.5h6M7.5 16h4"/></svg>',
+    briefcase: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg>',
+    flag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+    rocket: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9-.8-.8-2.1-.8-2.9-.1Z"/><path d="M12 15l-3-3a22 22 0 0 1 2-4A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2Z"/><path d="M9 12H4s.6-3 2-4c1.6-1.1 5 0 5 0M12 15v5s3-.6 4-2c1.1-1.6 0-5 0-5"/></svg>',
+    file: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/></svg>',
+    image: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>',
+    upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>',
+    tray: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h5l1.5 3h5L16 13h5"/><path d="M5.5 5h13L21 13v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5l2.5-8Z"/></svg>',
+    note: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v11l-5 5H5V4Z"/><path d="M14 20v-5h5M8.5 8.5h7M8.5 12h4"/></svg>',
+    question: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>',
+    gavel: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4l6 6M11 7l6 6M12.5 5.5l-5 5 6 6 5-5M10 13l-6 6"/><path d="M3 21h8"/></svg>',
+    folder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>',
+    up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
+    down: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+    grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg>',
+    expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
+    person: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+    spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg>',
+    hybrid: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20a6 6 0 0 1 10.5-4"/><path d="M17 9l1.2 3.3 3.3 1.2-3.3 1.2L17 18l-1.2-3.3-3.3-1.2 3.3-1.2L17 9Z"/></svg>',
+  };
+  const OWNER_ICON = { Andrea: ICON.person, Agente: ICON.spark, Ibrido: ICON.hybrid };
+  const ownerChip = (o) => `<span class="owner ${esc(o).toLowerCase()}">${OWNER_ICON[o] || ""}${esc(o)}</span>`;
+  const radioSeg = (name, options, checked) => options.map(([v, l, icon = ""]) =>
+    `<label class="rseg-opt"><input type="radio" name="${name}" value="${esc(v)}" ${v === checked ? "checked" : ""}><span>${icon}${esc(l)}</span></label>`).join("");
+  const priPick = (name, checked = "media") => `<div class="pri-pick" role="radiogroup" aria-label="Priorità">
+    ${Object.entries(PRI).map(([k, p]) => `<label class="pri-opt ${k}"><input type="radio" name="${name}" value="${k}" ${k === checked ? "checked" : ""}><span>${p.label}</span></label>`).join("")}
+  </div>`;
+  /** <option> dei traguardi di un'area (+ Lancio) */
+  function milestoneOptions(areaId, selected, emptyLabel) {
+    const area = areaById(areaId);
+    const opt = (m) => `<option value="${m.id}" ${m.id === selected ? "selected" : ""}>${esc(m.name)}${Model.isReached(m.id) ? " (raggiunto)" : ""}</option>`;
+    return `<option value="">${emptyLabel}</option>${(area?.milestones || []).map(opt).join("")}${opt(LAUNCH)}`;
+  }
+
+  // ---------- struttura (una volta) ----------
   function mount(el, s) {
     root = el;
     store = s;
     root.innerHTML = `
-      <header class="top">
-        <h1>App notizie</h1>
-        <div class="top-right">
-          <span id="sync" class="sync"></span>
-          <button class="icon" data-action="settings" aria-label="Impostazioni">⚙︎</button>
+      <header class="top" id="desk-top">
+        <div class="top-title">
+          <p class="eyebrow">Scrivania di progetto</p>
+          <h1>App notizie</h1>
+        </div>
+        <div class="top-actions">
+          <span class="sync" role="status" aria-live="polite"></span>
+          <button class="icon-btn" data-action="settings" aria-label="Impostazioni">${ICON.gear}</button>
         </div>
       </header>
+
+      <nav class="navbar" id="act-nav" hidden>
+        <button class="back-btn" data-action="go-desk">${ICON.back}<span>Scrivania</span></button>
+        <div class="top-actions">
+          <span class="sync" role="status"></span>
+          <button class="icon-btn" data-action="settings" aria-label="Impostazioni">${ICON.gear}</button>
+        </div>
+      </nav>
+
       <div id="banner"></div>
-      <section class="card" id="summary"></section>
-      <section class="card"><h2>Fasi</h2><div id="phases" class="phases"></div></section>
-      <section class="card">
-        <div class="row-between"><h2>File di lavoro</h2><div id="filters" class="seg"></div></div>
-        <div id="files" class="files"></div>
-      </section>
-      ${LISTS.map((l) => `
-        <section class="card">
-          <h2>${l.title}</h2>
-          <ul id="list-${l.key}" class="list"></ul>
-          <form class="add" data-list="${l.key}">
-            <input name="text" placeholder="${l.placeholder}" autocomplete="off">
-            <button>Aggiungi</button>
-          </form>
-        </section>`).join("")}
-      <section class="card">
-        <h2>Registro decisioni</h2>
-        <ul id="decisions" class="list"></ul>
-        <form class="add" data-list="decisions">
-          <input name="date" type="date" class="date">
-          <input name="text" placeholder="Nuova decisione" autocomplete="off">
-          <button>Aggiungi</button>
-        </form>
-      </section>
-      <p class="foot"><a id="board" target="_blank" rel="noopener">Apri la lavagna ↗</a></p>
-      <div id="toast" class="toast" hidden></div>
-      <dialog id="settings">
-        <form method="dialog" class="settings">
-          <h2>Token GitHub</h2>
-          <p>Serve per salvare le modifiche. Resta solo in questo browser.</p>
-          <input id="token" type="password" placeholder="github_pat_…" autocomplete="off">
-          <p id="token-msg" class="muted"></p>
-          <div class="row-between">
-            <button type="button" data-action="clear-token" class="secondary">Rimuovi</button>
-            <span>
-              <button value="cancel" class="secondary">Chiudi</button>
-              <button type="button" data-action="save-token">Salva e verifica</button>
-            </span>
+
+      <!-- ================= SCRIVANIA ================= -->
+      <div id="view-desk">
+        <section class="card roadmap" aria-labelledby="h-road">
+          <div class="card-head">
+            <h2 id="h-road"><span class="h-icon accent">${ICON.rocket}</span>Timeline</h2>
+            <div class="head-actions">
+              <span class="hint">Tocca un traguardo per segnarlo raggiunto</span>
+              <button class="pill-btn small" data-action="edit-milestones">${ICON.pencil}<span>Traguardi</span></button>
+            </div>
           </div>
+          <div id="roadmap" class="road-rows"></div>
+        </section>
+
+        <div class="desk">
+          <aside class="card prio" aria-labelledby="h-prio">
+            <div class="card-head">
+              <h2 id="h-prio"><span class="h-icon red">${ICON.flag}</span>Priorità</h2>
+              <span id="prio-count" class="count"></span>
+            </div>
+            <div id="prio-mode" class="seg full" role="tablist" aria-label="Ordina"></div>
+            <div id="prio-filter" class="chips" role="tablist" aria-label="Filtra per area"></div>
+            <ol id="prio-list" class="rows prio-list"></ol>
+            <button id="prio-more" class="more-btn" data-action="prio-more" hidden></button>
+            <p id="prio-hint" class="prio-hint"></p>
+          </aside>
+
+          <div class="areas">
+            <div class="mobile-switch"><div id="area-switch" class="seg full" role="tablist" aria-label="Area"></div></div>
+            ${AREAS.map((a) => `
+              <section class="area ${a.id}" id="area-${a.id}" aria-labelledby="h-${a.id}">
+                <div class="area-head">
+                  <span class="area-icon ${a.id}">${ICON[a.icon]}</span>
+                  <div class="area-title"><h2 id="h-${a.id}">${a.name}</h2><p id="area-sub-${a.id}"></p></div>
+                </div>
+                <p id="area-next-${a.id}" class="area-next"></p>
+                <div id="groups-${a.id}" class="groups"></div>
+                <div class="area-add">
+                  <button class="new-act" data-action="new-activity" data-value="${a.id}">${ICON.plus}<span>Attività</span></button>
+                  <button class="new-act" data-action="new-group" data-value="${a.id}">${ICON.folder}<span>Gruppo</span></button>
+                </div>
+              </section>`).join("")}
+          </div>
+        </div>
+
+        <h2 class="zone-title">In comune</h2>
+        <div class="lists">
+          ${LISTS.map((l) => `
+            <section class="card list-card" aria-labelledby="h-${l.key}">
+              <div class="card-head"><h3 id="h-${l.key}">${l.title} <span id="count-${l.key}" class="count"></span></h3></div>
+              <ul id="list-${l.key}" class="rows"></ul>
+              ${addForm({ kind: "real", list: l.key, placeholder: l.placeholder })}
+            </section>`).join("")}
+        </div>
+        <div class="common-bottom">
+          <section class="card" aria-labelledby="h-dec">
+            <div class="card-head"><h3 id="h-dec">Registro decisioni <span id="count-decisions" class="count"></span></h3></div>
+            <ul id="decisions" class="rows decisions"></ul>
+            ${addForm({ kind: "decision", placeholder: "Nuova decisione", date: true })}
+          </section>
+          <section class="card board-card" aria-labelledby="h-board">
+            <div class="card-head">
+              <h3 id="h-board">Lavagna</h3>
+              <a id="board" class="link-btn" target="_blank" rel="noopener">Apri su claude.ai${ICON.arrow}</a>
+            </div>
+            <button class="board-preview" data-action="open-board" aria-label="Ingrandisci l'anteprima della lavagna">
+              <img src="img/lavagna.jpg?v=1" alt="Anteprima della lavagna del progetto" loading="lazy">
+              <span class="board-zoom">${ICON.expand}</span>
+            </button>
+            <p class="board-note">Anteprima statica della lavagna. La versione aggiornata è su claude.ai.</p>
+          </section>
+        </div>
+      </div>
+
+      <!-- ================= PAGINA ATTIVITÀ ================= -->
+      <div id="view-activity" hidden>
+        <header class="act-hero">
+          <span id="p-icon" class="area-icon big"></span>
+          <div class="act-hero-text">
+            <p id="p-crumb" class="crumb"></p>
+            <h1 id="p-title"></h1>
+            <p id="p-hint" class="act-hint"></p>
+          </div>
+          <div class="act-hero-actions">
+            <button class="pill-btn" data-action="edit-activity">${ICON.pencil}<span>Modifica</span></button>
+            <button class="pill-btn danger" data-action="delete-activity" aria-label="Elimina attività">${ICON.trash}</button>
+          </div>
+        </header>
+
+        <div class="facts">
+          <div class="fact"><span class="fact-k">Chi se ne occupa</span><div id="p-owner" class="seg full" role="radiogroup" aria-label="Chi se ne occupa"></div></div>
+          <div class="fact"><span class="fact-k">Stato</span><div id="p-status" class="seg full" role="radiogroup" aria-label="Stato"></div></div>
+          <div class="fact"><span class="fact-k">Orizzonte</span><p id="p-until" class="fact-v"></p></div>
+        </div>
+
+        <div class="act-grid">
+          <section class="card col-tasks" aria-labelledby="h-ptasks">
+            <div class="card-head"><h2 id="h-ptasks"><span class="h-icon">${ICON.check}</span>Task</h2><span id="p-count-tasks" class="count"></span></div>
+            <ul id="p-tasks" class="rows"></ul>
+            <form class="add add-task" data-kind="dtask" autocomplete="off">
+              <div class="add-line">
+                <span class="add-icon">${ICON.plus}</span>
+                <input name="text" placeholder="Nuovo task" enterkeyhint="done" aria-label="Nuovo task">
+              </div>
+              <div class="add-opts">
+                ${priPick("priority")}
+                <label class="opt-field"><span>Scadenza</span><input name="due" type="date" class="date-input"></label>
+                <label class="opt-field"><span>Traguardo</span><select name="milestone" id="p-task-ms" class="select-input"></select></label>
+                <button class="add-btn show">Aggiungi</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="card col-files" aria-labelledby="h-pfiles">
+            <div class="card-head"><h2 id="h-pfiles"><span class="h-icon">${ICON.tray}</span>File</h2><span id="p-count-files" class="count"></span></div>
+            <ul id="p-files" class="file-grid"></ul>
+            <label class="dropzone" id="dropzone">
+              <input id="file-input" type="file" multiple hidden>
+              <span class="drop-icon">${ICON.upload}</span>
+              <span><b>Carica file</b><small class="drop-hint">oppure trascinali qui · max 25 MB</small></span>
+            </label>
+            <p id="upload-note" class="upload-note"></p>
+          </section>
+
+          <div class="col-side">
+            <section class="card" aria-labelledby="h-pdec">
+              <div class="card-head"><h2 id="h-pdec"><span class="h-icon">${ICON.gavel}</span>Decisioni</h2><span id="p-count-dec" class="count"></span></div>
+              <ul id="p-dec" class="rows decisions"></ul>
+              ${addForm({ kind: "ddec", placeholder: "Nuova decisione", date: true })}
+            </section>
+            <section class="card" aria-labelledby="h-popen">
+              <div class="card-head"><h2 id="h-popen"><span class="h-icon">${ICON.question}</span>Da decidere</h2><span id="p-count-open" class="count"></span></div>
+              <ul id="p-open" class="rows"></ul>
+              ${addForm({ kind: "dopen", placeholder: "Nuovo punto da decidere" })}
+            </section>
+            <section class="card" aria-labelledby="h-pnote">
+              <div class="card-head"><h2 id="h-pnote"><span class="h-icon">${ICON.note}</span>Note</h2></div>
+              <textarea id="p-note" class="note" rows="6" placeholder="Appunti, link, idee su questa attività…" aria-labelledby="h-pnote"></textarea>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <footer id="foot" class="foot"></footer>
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+      <!-- foglio: modifica di un elemento -->
+      <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+        <form method="dialog" id="sheet-form">
+          <div class="sheet-head">
+            <button value="cancel" class="text-btn">Annulla</button>
+            <h2 id="sheet-title">Modifica</h2>
+            <button type="submit" value="save" class="text-btn strong">Fine</button>
+          </div>
+          <textarea id="sheet-text" rows="3" aria-label="Testo"></textarea>
+          <div class="form-group">
+            <div id="sheet-pri-wrap" class="f-row"><span>Priorità</span>${priPick("sheet-pri")}</div>
+            <label id="sheet-ms-wrap" class="f-row"><span>Traguardo</span><select id="sheet-ms" class="select-input"></select></label>
+            <label id="sheet-date-wrap" class="f-row"><span id="sheet-date-label">Data</span><input id="sheet-date" type="date" class="date-input"></label>
+          </div>
+          <button type="button" data-action="sheet-delete" class="danger-btn">Elimina</button>
+        </form>
+      </dialog>
+
+      <!-- foglio: nuova attività / modifica attività -->
+      <dialog id="act-sheet" class="sheet" aria-labelledby="act-sheet-title">
+        <form method="dialog" id="act-form" autocomplete="off">
+          <div class="sheet-head">
+            <button value="cancel" class="text-btn" formnovalidate>Annulla</button>
+            <h2 id="act-sheet-title">Nuova attività</h2>
+            <button type="submit" value="save" class="text-btn strong">Salva</button>
+          </div>
+          <div class="form-group">
+            <label class="f-row stack"><span>Nome</span><input name="name" required placeholder="Es. Onboarding" class="text-input"></label>
+            <div class="f-row stack"><span>Area</span><div class="rseg" id="af-area">${radioSeg("area", AREAS.map((a) => [a.id, a.name]), "app")}</div></div>
+            <label class="f-row stack"><span>Gruppo</span><select name="group" id="af-group" class="select-input"></select></label>
+            <div class="f-row stack"><span>Chi se ne occupa</span><div class="rseg">${radioSeg("owner", Model.OWNERS.map((o) => [o, o, OWNER_ICON[o]]), "Ibrido")}</div></div>
+            <label class="f-row stack"><span>Nota breve</span><input name="hint" placeholder="Facoltativa, es. «solo nazionale, per ora»" class="text-input"></label>
+            <label class="f-row stack"><span>Si chiude con</span><select name="until" id="af-until" class="select-input"></select></label>
+          </div>
+          <button type="button" data-action="act-delete" id="af-delete" class="danger-btn">Elimina attività</button>
+        </form>
+      </dialog>
+
+      <!-- foglio: nuovo gruppo / modifica gruppo -->
+      <dialog id="group-sheet" class="sheet" aria-labelledby="group-sheet-title">
+        <form method="dialog" id="group-form" autocomplete="off">
+          <div class="sheet-head">
+            <button value="cancel" class="text-btn" formnovalidate>Annulla</button>
+            <h2 id="group-sheet-title">Nuovo gruppo</h2>
+            <button type="submit" value="save" class="text-btn strong">Salva</button>
+          </div>
+          <div class="form-group">
+            <label class="f-row stack"><span>Nome del gruppo</span><input name="name" required placeholder="Es. Stile e design" class="text-input"></label>
+            <p id="group-area-note" class="f-note"></p>
+          </div>
+          <div id="group-move" class="move-row">
+            <button type="button" class="plain-btn" data-action="group-up">${ICON.up}Sposta su</button>
+            <button type="button" class="plain-btn" data-action="group-down">${ICON.down}Sposta giù</button>
+          </div>
+          <button type="button" data-action="group-delete" id="group-delete" class="danger-btn">Elimina gruppo</button>
+          <p id="group-delete-note" class="f-note center">Le attività del gruppo non vengono eliminate: restano nell'area come card a sé.</p>
+        </form>
+      </dialog>
+
+      <!-- foglio: modifica traguardi -->
+      <dialog id="ms-sheet" class="sheet" aria-labelledby="ms-sheet-title">
+        <form method="dialog" id="ms-form" autocomplete="off">
+          <div class="sheet-head">
+            <button value="cancel" class="text-btn">Annulla</button>
+            <h2 id="ms-sheet-title">Traguardi</h2>
+            <button type="submit" value="save" class="text-btn strong">Fine</button>
+          </div>
+          <div id="ms-area" class="seg full" role="tablist" aria-label="Area"></div>
+          <ol id="ms-list" class="ms-list"></ol>
+          <button type="button" class="plain-btn" data-action="ms-add">${ICON.plus} Aggiungi traguardo</button>
+          <p class="f-note center">I traguardi vanno in ordine di tempo. Il Lancio è comune a tutte le aree.<br>Se elimini un traguardo, i task e le attività collegati restano, senza traguardo.</p>
+        </form>
+      </dialog>
+
+      <!-- visore della lavagna -->
+      <dialog id="board-view" class="viewer" aria-label="Lavagna del progetto">
+        <div class="viewer-bar">
+          <button class="icon-btn round" data-action="close-board" aria-label="Chiudi">${ICON.x}</button>
+          <b>Lavagna</b>
+          <a id="board-open" class="pill-btn small" target="_blank" rel="noopener">Apri su claude.ai${ICON.arrow}</a>
+        </div>
+        <div class="viewer-body"><img src="img/lavagna.jpg?v=1" alt="Lavagna del progetto"></div>
+      </dialog>
+
+      <dialog id="settings" class="sheet" aria-labelledby="settings-title">
+        <form method="dialog">
+          <div class="sheet-head">
+            <span></span>
+            <h2 id="settings-title">Impostazioni</h2>
+            <button value="cancel" class="text-btn strong">Chiudi</button>
+          </div>
+          <div class="group">
+            <p class="group-title">Token GitHub</p>
+            <p class="group-note">Serve per salvare le modifiche. Resta solo in questo browser.</p>
+            <input id="token" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false" aria-label="Token GitHub">
+            <p id="token-msg" class="token-msg"></p>
+          </div>
+          <button type="button" data-action="save-token" class="primary-btn">Salva e verifica</button>
+          <button type="button" data-action="clear-token" class="danger-btn">Rimuovi token</button>
+          <button type="button" data-action="refresh" class="plain-btn">Ricarica i dati</button>
         </form>
       </dialog>`;
 
     root.addEventListener("click", onClick);
     root.addEventListener("submit", onSubmit);
+    root.addEventListener("keydown", onKey);
+    // le modifiche si applicano al tocco su "Fine"/"Salva" (submit), la chiusura serve solo a fare pulizia
+    const onSave = (formSel, fn) => $(formSel).addEventListener("submit", (e) => { if (e.submitter?.value === "save") fn(); });
+    onSave("#sheet-form", onSheetClose);
+    onSave("#act-form", onActSheetClose);
+    onSave("#group-form", onGroupSheetClose);
+    onSave("#ms-form", onMsSheetClose);
+    $("#sheet").addEventListener("close", () => { editing = null; });
+    $("#act-sheet").addEventListener("close", () => { editingActivity = null; });
+    $("#group-sheet").addEventListener("close", () => { editingGroup = null; });
+    $("#ms-sheet").addEventListener("close", () => { msWork = null; });
+    setupMilestoneDrag();
+    $("#ms-list").addEventListener("input", (e) => {
+      const i = Number(e.target.dataset.i);
+      if (msWork && e.target.matches("input") && msWork[msArea][i]) msWork[msArea][i].name = e.target.value;
+    });
+    $("#act-form").addEventListener("change", (e) => { if (e.target.name === "area") fillActFormArea(e.target.value); });
+    for (const d of root.querySelectorAll("dialog")) {
+      d.addEventListener("click", (e) => { if (e.target === d) d.close("cancel"); });
+    }
+    $("#file-input").addEventListener("change", (e) => {
+      if (current && e.target.files.length) upload(current, e.target.files);
+      e.target.value = "";
+    });
+    const dz = $("#dropzone");
+    dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
+    dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+    dz.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dz.classList.remove("over");
+      if (current && e.dataTransfer.files.length) upload(current, e.dataTransfer.files);
+    });
+    // note: si salvano poco dopo che smetti di scrivere, quando esci dal campo o cambi pagina
+    $("#p-note").addEventListener("input", () => { clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 800); });
+    $("#p-note").addEventListener("blur", flushNote);
+    window.addEventListener("hashchange", route);
+
+    route();
   }
 
+  async function upload(actId, files) {
+    const n = files.length;
+    showToast(n === 1 ? `Carico «${files[0].name}»…` : `Carico ${n} file…`);
+    const res = await Model.addFiles(actId, files);
+    if (res.errors.length) showToast(res.errors[0] + (res.errors.length > 1 ? ` (e altri ${res.errors.length - 1})` : ""));
+    else showToast(n === 1 ? "File caricato" : `${n} file caricati`);
+  }
+
+  function addForm({ kind, list = "", placeholder, date = false }) {
+    return `<form class="add ${date ? "add-wrap" : ""}" data-kind="${kind}" data-list="${list}" autocomplete="off">
+      <span class="add-icon">${ICON.plus}</span>
+      <input name="text" placeholder="${placeholder}" enterkeyhint="done" aria-label="${placeholder}">
+      ${date ? `<input name="date" type="date" class="date-input" aria-label="Data">` : ""}
+      <button class="add-btn">Aggiungi</button>
+    </form>`;
+  }
+
+  // ---------- navigazione ----------
+  function route() {
+    const m = location.hash.match(/^#\/a\/(.+)$/);
+    const id = m && decodeURIComponent(m[1]);
+    const wasDesk = view === "desk";
+    flushNote();
+    if (id && !window.Store.data) { pendingRoute = true; return; }
+    if (id && Model.activity(id)) {
+      if (wasDesk) deskScroll = window.scrollY;
+      view = "activity";
+      if (current !== id) { current = id; shownNoteFor = null; }
+      render(lastData, lastStatus);
+      window.scrollTo(0, 0);
+    } else {
+      view = "desk";
+      current = null;
+      render(lastData, lastStatus);
+      if (!wasDesk) requestAnimationFrame(() => window.scrollTo(0, deskScroll));
+    }
+  }
+  const goActivity = (id) => { location.hash = `#/a/${encodeURIComponent(id)}`; };
+  const goDesk = () => { if (location.hash && location.hash !== "#/") location.hash = "#/"; else route(); };
+
+  // ---------- eventi ----------
   function onClick(e) {
     const t = e.target.closest("[data-action]");
     if (!t) return;
-    const { action, id, list, value } = t.dataset;
+    const { action, kind, list, a, id, value } = t.dataset;
     switch (action) {
-      case "phase": store.setPhase(value); break;
-      case "filter": filter = value; render(store.data, store.status); break;
-      case "file": store.cycleFileStatus(id); break;
-      case "toggle": store.toggleItem(list, id); break;
-      case "edit": {
-        const item = store.data[list].find((x) => x.id === id);
-        const text = prompt("Modifica", item.text);
-        if (text != null) list === "decisions" ? store.editDecision(id, { text }) : store.editItem(list, id, text);
+      case "open-activity": goActivity(id); break;
+      case "go-desk": goDesk(); break;
+      case "status":
+        if (!current) break;
+        Model.setStatus(current, value);
+        break;
+      case "owner": if (current) Model.setOwner(current, value); break;
+      case "milestone": Model.clickMilestone(id); break;
+      case "area": mobileArea = value; renderAreas(); break;
+      case "prio-mode": prioMode = value; prioExpanded = false; renderPriorities(lastData); break;
+      case "prio-filter": prioFilter = value; prioExpanded = false; renderPriorities(lastData); break;
+      case "prio-more": prioExpanded = !prioExpanded; renderPriorities(lastData); break;
+      case "new-activity": openActSheet(null, value, t.dataset.group || ""); break;
+      case "new-group": openGroupSheet(null, value); break;
+      case "edit-group": openGroupSheet(id); break;
+      case "group-up": case "group-down": {
+        const g = editingGroup && Model.group(editingGroup);
+        if (g) Model.moveBlock(g.area, "g:" + g.id, action === "group-up" ? -1 : 1);
         break;
       }
-      case "delete": {
-        const undo = list === "decisions" ? store.removeDecision(id) : store.removeItem(list, id);
-        showUndo("Elemento eliminato", undo);
+      case "group-delete": {
+        const gid = editingGroup;
+        editingGroup = null;
+        $("#group-sheet").close("cancel");
+        const g = gid && Model.group(gid);
+        if (g) showUndo(`Gruppo «${g.name}» eliminato`, Model.removeGroup(gid));
         break;
       }
-      case "settings": {
-        $("#token").value = "";
-        $("#token-msg").textContent = store.hasToken() ? "Token già inserito." : "Nessun token inserito.";
-        $("#settings").showModal();
+      case "edit-milestones": openMsSheet(); break;
+      case "ms-area": msArea = value; renderMsSheet(); break;
+      case "ms-add": msWork[msArea].push({ id: "", name: "" }); renderMsSheet(true); break;
+      case "ms-del": msWork[msArea].splice(Number(t.dataset.i), 1); renderMsSheet(); break;
+      case "ms-up": case "ms-down": {
+        const list = msWork[msArea], i = Number(t.dataset.i), j = i + (action === "ms-up" ? -1 : 1);
+        if (j >= 0 && j < list.length) { [list[i], list[j]] = [list[j], list[i]]; renderMsSheet(); }
         break;
       }
-      case "save-token": {
-        const v = $("#token").value.trim();
-        if (v) store.setToken(v);
-        $("#token-msg").textContent = "Verifico…";
-        store.checkToken().then((r) => {
-          $("#token-msg").textContent = r.ok ? "✅ Token valido: puoi salvare." : "⚠️ " + r.error;
-        });
+      case "open-board": $("#board-view").showModal(); break;
+      case "close-board": $("#board-view").close(); break;
+      case "edit-activity": if (current) openActSheet(current); break;
+      case "delete-activity": if (current) deleteActivity(current); break;
+      case "act-delete": {
+        const id2 = editingActivity;
+        editingActivity = null;
+        $("#act-sheet").close("cancel");
+        if (id2 && !id2.startsWith("new:")) deleteActivity(id2);
         break;
       }
-      case "clear-token": store.clearToken(); $("#token-msg").textContent = "Token rimosso."; break;
+      case "toggle": toggle(kind, list, a, id); break;
+      case "edit": openSheet({ kind, list, a, id }); break;
+      case "delete": remove({ kind, list, a, id }); break;
+      case "sheet-delete": {
+        const ed = editing;
+        editing = null;
+        $("#sheet").close("cancel");
+        if (ed) remove(ed);
+        break;
+      }
+      case "settings": openSettings(); break;
+      case "save-token": saveToken(); break;
+      case "clear-token": store.clearToken(); $("#token").value = ""; setTokenMsg("Token rimosso.", ""); break;
+      case "refresh": store.refresh(); setTokenMsg("Dati ricaricati.", ""); break;
       case "undo": t._undo?.(); hideToast(); break;
       case "retry": store.flush(); break;
+    }
+  }
+
+  function onKey(e) {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches("[role=button][data-action]")) {
+      e.preventDefault();
+      e.target.click();
     }
   }
 
@@ -131,89 +558,697 @@
     if (!f) return;
     e.preventDefault();
     const text = f.text.value;
-    if (!text.trim()) return;
-    if (f.dataset.list === "decisions") store.addDecision(text, f.date.value || undefined);
-    else store.addItem(f.dataset.list, text);
+    if (!text.trim()) { f.text.focus(); return; }
+    switch (f.dataset.kind) {
+      case "real": store.addItem(f.dataset.list, text); break;
+      case "decision": store.addDecision(text, f.date.value || undefined); f.date.value = ""; break;
+      case "dtask":
+        if (!current) return;
+        Model.addTask(current, { text, priority: f.priority.value || "media", due: f.due.value, milestone: f.milestone.value });
+        f.due.value = "";
+        break;
+      case "ddec": if (current) Model.addDecision(current, text, f.date.value); f.date.value = ""; break;
+      case "dopen": if (current) Model.addOpen(current, text); break;
+    }
     f.text.value = "";
+    f.text.focus();
   }
 
-  function showUndo(msg, undo) {
+  function toggle(kind, list, a, id) {
+    if (kind === "real") store.toggleItem(list, id);
+    else if (kind === "dtask") Model.toggleTask(a, id);
+    else if (kind === "dopen") Model.toggleOpen(a, id);
+  }
+
+  function remove({ kind, list, a, id }) {
+    let undo, msg = "Elemento eliminato";
+    if (kind === "real") undo = store.removeItem(list, id);
+    else if (kind === "decision") { undo = store.removeDecision(id); msg = "Decisione eliminata"; }
+    else if (kind === "dtask") { undo = Model.removeTask(a, id); msg = "Task eliminato"; }
+    else if (kind === "dopen") undo = Model.removeOpen(a, id);
+    else if (kind === "ddec") { undo = Model.removeDecision(a, id); msg = "Decisione eliminata"; }
+    else if (kind === "dfile") { undo = Model.removeFile(a, id); msg = "File rimosso"; }
+    if (undo) showUndo(msg, undo);
+  }
+
+  function deleteActivity(id) {
+    const act = Model.activity(id);
+    if (!act) return;
+    if (current === id) flushNote();
+    const undo = Model.removeActivity(id);
+    if (current === id) goDesk();
+    showUndo(`«${act.name}» eliminata`, undo);
+  }
+
+  // ---------- verso il lancio ----------
+  function renderRoadmap() {
+    $("#roadmap").innerHTML = AREAS.map((a) => {
+      const done = Model.progress(a.id);
+      const next = Model.nextMilestone(a.id);
+      const nodes = [...a.milestones, LAUNCH];
+      const reached = nodes.map((m) => Model.isReached(m.id));
+      return `<div class="road ${a.id}">
+        <div class="road-label">
+          <span class="road-name"><i></i>${a.name}</span>
+          <span class="road-count">${done} di ${a.milestones.length}</span>
+        </div>
+        <ol class="track">
+          ${nodes.map((m, i) => {
+            const isLaunch = m.id === LAUNCH.id;
+            const ok = reached[i];
+            const isNext = next && m.id === next.id;
+            // segmento a destra di questo nodo: pieno se il nodo seguente è raggiunto, tenue se è il prossimo
+            const right = i < nodes.length - 1 ? (reached[i + 1] ? "seg-ok" : (next && nodes[i + 1].id === next.id && ok) ? "seg-next" : "") : "";
+            const left = i > 0 ? (ok ? "in-ok" : isNext && reached[i - 1] ? "in-next" : "") : "";
+            return `<li class="node ${ok ? "ok" : ""} ${isNext ? "next" : ""} ${isLaunch ? "launch" : ""} ${right} ${left}">
+              <button data-action="milestone" data-id="${m.id}" aria-pressed="${ok}" title="${esc(m.name)}${ok ? " · raggiunto" : ""}">
+                <span class="dot">${ok ? ICON.check : isLaunch ? ICON.flag : ""}</span>
+                <span class="node-name">${esc(m.name)}</span>
+              </button>
+            </li>`;
+          }).join("")}
+        </ol>
+        <p class="road-next">${next ? `Prossimo: <b>${esc(next.name)}</b>` : "Lanciato"}</p>
+      </div>`;
+    }).join("");
+  }
+
+  // ---------- priorità ----------
+  function tierOf(t) {
+    const days = t.due ? daysFromToday(t.due) : null;
+    if (days !== null && days < 0) return 0;                               // scaduto
+    if (t.milestone && t.area && Model.isReached(t.milestone)) return 0;    // traguardo già passato
+    if (t.priority === "alta") return 1;
+    if (days !== null && days <= 2) return 2;                              // in scadenza
+    if (t.milestone && t.area && Model.nextMilestone(t.area)?.id === t.milestone) return 2; // serve per il prossimo traguardo
+    return t.priority === "media" ? 3 : 4;
+  }
+  function sortByUrgency(list) {
+    return list.slice().sort((x, y) =>
+      (x.done - y.done) ||
+      (tierOf(x) - tierOf(y)) ||
+      ((x.due || "9999").localeCompare(y.due || "9999")) ||
+      (PRI[x.priority]?.rank ?? 1) - (PRI[y.priority]?.rank ?? 1) ||
+      (x.created || 0) - (y.created || 0));
+  }
+  function dueChip(iso) {
+    if (!iso) return "";
+    const d = daysFromToday(iso);
+    let t, cls = "";
+    if (d < 0) { t = d === -1 ? "Scaduto ieri" : `Scaduto da ${-d} gg`; cls = "late"; }
+    else if (d === 0) { t = "Oggi"; cls = "soon"; }
+    else if (d === 1) { t = "Domani"; cls = "soon"; }
+    else if (d < 7) t = `Tra ${d} gg`;
+    else t = fmtDate(iso, false);
+    return `<span class="due ${cls}">${t}</span>`;
+  }
+  function msChip(id) {
+    if (!id) return "";
+    const m = Model.milestone(id);
+    if (!m) return "";
+    return `<span class="ms ${Model.isReached(id) ? "passed" : ""}">${ICON.flag}${esc(m.name)}</span>`;
+  }
+
+  function allOpenTasks(data) {
+    const out = [];
+    for (const act of Model.activities()) {
+      for (const t of Model.get(act.id).tasks) if (!t.done) out.push({ ...t, a: act.id, kind: "dtask", act, area: act.area });
+    }
+    for (const t of data.tasks) if (!t.done) out.push({ ...t, kind: "real", list: "tasks", priority: "media", due: "", area: "common" });
+    return sortByUrgency(out);
+  }
+
+  function taskRow(t, { context = false, showMs = true } = {}) {
+    const kind = t.kind || "dtask";
+    const attrs = `data-kind="${kind}" data-list="${t.list || ""}" data-a="${t.a || ""}" data-id="${esc(t.id)}"`;
+    const bang = kind === "dtask" && PRI[t.priority] ? `<span class="bang ${t.priority}" title="Priorità ${PRI[t.priority].label.toLowerCase()}">${PRI[t.priority].bang}</span>` : "";
+    const ctx = context
+      ? (t.act
+        ? `<button class="ctx ${t.area}" data-action="open-activity" data-id="${esc(t.act.id)}"><i></i>${esc(t.act.name)}</button>`
+        : `<span class="ctx common"><i></i>In comune</span>`)
+      : "";
+    return `<li class="row task ${t.done ? "done" : ""}">
+      <button class="check" role="checkbox" aria-checked="${!!t.done}" data-action="toggle" ${attrs} aria-label="${t.done ? "Riapri" : "Segna come fatto"}"><span>${ICON.check}</span></button>
+      <div class="row-main">
+        <span class="row-text" tabindex="0" role="button" data-action="edit" ${attrs}>${bang}${esc(t.text)}</span>
+        <span class="row-meta">${ctx}${dueChip(t.due)}${showMs ? msChip(t.milestone) : ""}</span>
+      </div>
+      <button class="del" data-action="delete" ${attrs} aria-label="Elimina">${ICON.x}</button>
+    </li>`;
+  }
+
+  function simpleRow(it, { kind, list = "", a = "" }) {
+    const attrs = `data-kind="${kind}" data-list="${list}" data-a="${a}" data-id="${esc(it.id)}"`;
+    return `<li class="row ${it.done ? "done" : ""}">
+      <button class="check" role="checkbox" aria-checked="${!!it.done}" data-action="toggle" ${attrs} aria-label="${it.done ? "Riapri" : "Segna come fatto"}"><span>${ICON.check}</span></button>
+      <span class="row-text" tabindex="0" role="button" data-action="edit" ${attrs}>${esc(it.text)}</span>
+      <button class="del" data-action="delete" ${attrs} aria-label="Elimina">${ICON.x}</button>
+    </li>`;
+  }
+
+  function decisionRow(d, kind, a = "") {
+    const attrs = `data-kind="${kind}" data-a="${a}" data-id="${esc(d.id)}"`;
+    return `<li class="row">
+      <span class="row-text" tabindex="0" role="button" data-action="edit" ${attrs}>
+        <time datetime="${esc(d.date)}">${fmtDate(d.date)}</time>${esc(d.text)}
+      </span>
+      <button class="del" data-action="delete" ${attrs} aria-label="Elimina">${ICON.x}</button>
+    </li>`;
+  }
+  const sortDecisions = (arr) => arr.map((d, i) => ({ d, i }))
+    .sort((a, b) => String(b.d.date).localeCompare(String(a.d.date)) || b.i - a.i).map((x) => x.d);
+
+  function renderPriorities(data) {
+    if (!data) return;
+    const all = allOpenTasks(data);
+    $("#prio-mode").innerHTML = [["urgency", "Per urgenza"], ["milestone", "Per traguardo"]].map(([k, l]) =>
+      `<button role="tab" aria-selected="${prioMode === k}" class="${prioMode === k ? "on" : ""}" data-action="prio-mode" data-value="${k}">${l}</button>`).join("");
+    $("#prio-filter").innerHTML = [["all", "Tutte"], ...AREAS.map((a) => [a.id, a.name])].map(([k, l]) =>
+      `<button role="tab" aria-selected="${prioFilter === k}" class="chip ${k} ${prioFilter === k ? "on" : ""}" data-action="prio-filter" data-value="${k}">${k !== "all" ? "<i></i>" : ""}${l}</button>`).join("");
+    const list = prioFilter === "all" ? all : all.filter((t) => t.area === prioFilter);
+    const urgent = all.filter((t) => tierOf(t) <= 1).length;
+    $("#prio-count").textContent = urgent ? `${urgent} urgenti` : "";
+    const LIMIT = 7;
+    let html = "", shownCount = 0;
+
+    if (prioMode === "urgency") {
+      const shown = prioExpanded ? list : list.slice(0, LIMIT);
+      shownCount = shown.length;
+      html = shown.map((t) => taskRow(t, { context: true })).join("");
+      $("#prio-hint").textContent = "Ordine: scadute, priorità alta, in scadenza o per il prossimo traguardo, poi il resto.";
+    } else {
+      // gruppi: traguardi di ogni area in ordine, poi Lancio, poi senza traguardo
+      const groups = [];
+      for (const a of AREAS) {
+        if (prioFilter !== "all" && prioFilter !== a.id) continue;
+        for (const m of a.milestones) groups.push({ id: m.id, area: a, name: m.name });
+      }
+      groups.push({ id: LAUNCH.id, name: "Lancio" }, { id: "", name: "Senza traguardo" });
+      for (const g of groups) {
+        const tasks = list.filter((t) => (t.milestone || "") === g.id);
+        if (!tasks.length) continue;
+        if (!prioExpanded && shownCount >= LIMIT) break;
+        const room = prioExpanded ? tasks.length : Math.max(0, LIMIT - shownCount);
+        const isNext = g.area && Model.nextMilestone(g.area.id)?.id === g.id;
+        const passed = g.id && Model.isReached(g.id);
+        html += `<li class="prio-group ${g.area?.id || ""}">
+          ${g.area ? `<i></i>${esc(g.area.name)} · ` : g.id ? ICON.flag : ""}<b>${esc(g.name)}</b>
+          ${isNext ? '<span class="badge next">prossimo</span>' : passed ? '<span class="badge passed">superato</span>' : ""}
+          <span class="prio-group-n">${tasks.length}</span>
+        </li>`;
+        html += tasks.slice(0, room).map((t) => taskRow(t, { context: true, showMs: false })).join("");
+        shownCount += Math.min(room, tasks.length);
+      }
+      $("#prio-hint").textContent = "Raggruppate per traguardo; dentro ogni gruppo, in ordine di urgenza.";
+    }
+    $("#prio-list").innerHTML = html || `<li class="empty">Niente da fare qui. Ottimo.</li>`;
+    const more = $("#prio-more");
+    more.hidden = list.length <= LIMIT;
+    more.textContent = prioExpanded ? "Mostra meno" : `Mostra tutte (${list.length})`;
+  }
+
+  // ---------- aree ----------
+  function activityRow(act) {
+    const d = Model.get(act.id);
+    const st = statusOf(act);
+    const open = d.tasks.filter((t) => !t.done).map((t) => ({ ...t, area: act.area }));
+    const top = sortByUrgency(open)[0];
+    const urgent = open.some((t) => tierOf(t) <= 1);
+    const openPts = d.open.filter((o) => !o.done).length;
+    const until = act.until ? Model.milestone(act.until) : null;
+    const tags = [ownerChip(act.owner)];
+    if (open.length) tags.push(`<span>${open.length} task</span>`);
+    if (d.files.length) tags.push(`<span>${d.files.length} file</span>`);
+    if (openPts) tags.push(`<span>${openPts} da decidere</span>`);
+    if (until) tags.push(`<span class="until" title="Si chiude con questo traguardo">${ICON.flag}${esc(until.name)}</span>`);
+    if (st !== "todo") tags.push(`<span class="st ${st}">${STATUS[st]}</span>`);
+    return `<button class="activity ${st}" data-action="open-activity" data-id="${esc(act.id)}">
+      <span class="act-body">
+        <span class="act-name">${esc(act.name)}${urgent ? '<i class="urgent-dot" title="Ha task urgenti"></i>' : ""}</span>
+        ${top || act.hint ? `<span class="act-meta">${top ? esc(top.text) : esc(act.hint)}</span>` : ""}
+        <span class="act-tags">${tags.join("")}</span>
+      </span>
+      <span class="act-go">${ICON.chevron}</span>
+    </button>`;
+  }
+
+  function renderAreas() {
+    $("#area-switch").innerHTML = AREAS.map((a) =>
+      `<button role="tab" aria-selected="${mobileArea === a.id}" class="${mobileArea === a.id ? "on" : ""}" data-action="area" data-value="${a.id}">${a.name}</button>`).join("");
+    for (const area of AREAS) {
+      $(`#area-${area.id}`).classList.toggle("mobile-hidden", mobileArea !== area.id);
+      const acts = Model.activities().filter((x) => x.area === area.id);
+      const nGroups = Model.groupsOf(area.id).length;
+      const openTasks = acts.reduce((n, x) => n + Model.get(x.id).tasks.filter((t) => !t.done).length, 0);
+      $(`#area-sub-${area.id}`).textContent = `${nGroups ? `${nGroups} ${nGroups === 1 ? "gruppo" : "gruppi"} · ` : ""}${acts.length} attività · ${openTasks} task aperti`;
+      const next = Model.nextMilestone(area.id);
+      $(`#area-next-${area.id}`).innerHTML = next ? `${ICON.flag}<span>Prossimo traguardo:</span><b>${esc(next.name)}</b>` : `${ICON.check}<b>Lanciato</b>`;
+      const blocks = Model.blocks(area.id);
+      $(`#groups-${area.id}`).innerHTML = blocks.length ? blocks.map((b) => b.group ? `
+        <div class="group-card">
+          <div class="group-head">
+            <span class="group-ico">${ICON.folder}</span>
+            <h3 class="group-name">${esc(b.group.name)}</h3>
+            <span class="group-n">${b.acts.length}</span>
+            <button class="mini-btn" data-action="new-activity" data-value="${area.id}" data-group="${esc(b.group.id)}" aria-label="Aggiungi un'attività a ${esc(b.group.name)}" title="Aggiungi attività">${ICON.plus}</button>
+            <button class="mini-btn" data-action="edit-group" data-id="${esc(b.group.id)}" aria-label="Modifica il gruppo ${esc(b.group.name)}" title="Modifica gruppo">${ICON.pencil}</button>
+          </div>
+          <div class="group-body">
+            ${b.acts.length ? b.acts.map(activityRow).join("") : `<p class="group-empty">Gruppo vuoto: aggiungi un'attività con il +</p>`}
+          </div>
+        </div>` : `<div class="group-card solo">${activityRow(b.act)}</div>`).join("")
+        : `<p class="empty">Nessuna attività. Aggiungine una.</p>`;
+    }
+  }
+
+  // ---------- pagina attività ----------
+  function renderActivity() {
+    const act = current && Model.activity(current);
+    if (!act) {
+      // attività eliminata (qui o da un'altra parte): si torna alla scrivania senza salvare nulla
+      clearTimeout(noteTimer);
+      current = null;
+      shownNoteFor = null;
+      if (view === "activity") goDesk();
+      return;
+    }
+    const area = areaById(act.area);
+    const d = Model.get(act.id);
+    const st = statusOf(act);
+    $("#p-icon").className = `area-icon big ${area.id}`;
+    $("#p-icon").innerHTML = ICON[area.icon];
+    $("#p-crumb").innerHTML = `<span class="crumb-area ${area.id}">${area.name}</span>${act.group ? ` › ${esc(Model.group(act.group)?.name || "")}` : ""}`;
+    $("#p-title").textContent = act.name;
+    $("#p-hint").textContent = act.hint;
+    $("#p-hint").hidden = !act.hint;
+    document.title = `${act.name} · App notizie`;
+
+    $("#p-owner").innerHTML = Model.OWNERS.map((o) =>
+      `<button role="radio" aria-checked="${act.owner === o}" class="${act.owner === o ? "on" : ""}" data-action="owner" data-value="${o}">${OWNER_ICON[o]}${o}</button>`).join("");
+    $("#p-status").innerHTML = Object.entries(STATUS).map(([k, l]) =>
+      `<button role="radio" aria-checked="${st === k}" class="${st === k ? "on " + k : ""}" data-action="status" data-value="${k}">${l}</button>`).join("");
+    const until = act.until ? Model.milestone(act.until) : null;
+    $("#p-until").innerHTML = until
+      ? `${ICON.flag}<span>Si chiude con <b>${esc(until.name)}</b>${Model.isReached(until.id) ? " · raggiunto" : ""}</span>`
+      : `<span>Continua a evolvere anche dopo il lancio</span>`;
+
+    // task
+    const tasks = sortByUrgency(d.tasks.map((t) => ({ ...t, a: act.id, area: act.area })));
+    const openN = tasks.filter((t) => !t.done).length;
+    $("#p-count-tasks").textContent = d.tasks.length ? `${openN} ${openN === 1 ? "aperto" : "aperti"}` : "";
+    $("#p-tasks").innerHTML = tasks.length ? tasks.map((t) => taskRow(t)).join("") : `<li class="empty">Nessun task: aggiungine uno qui sotto.</li>`;
+    const msSel = $("#p-task-ms");
+    if (document.activeElement !== msSel) {
+      const keep = msSel.value;
+      msSel.innerHTML = milestoneOptions(act.area, keep, "Nessuno");
+    }
+
+    // file
+    $("#p-count-files").textContent = d.files.length || "";
+    $("#p-files").innerHTML = d.files.map((x) => {
+      const url = Model.fileUrl(x);
+      const img = x.type?.startsWith("image/");
+      const thumb = img && url ? `<img src="${esc(url)}" alt="" loading="lazy">` : `<span class="file-ico ${img ? "img" : ""}">${img ? ICON.image : ICON.file}</span>`;
+      const inner = `<span class="file-thumb">${thumb}</span>
+        <span class="file-meta"><b title="${esc(x.name)}">${esc(x.name)}</b><small>${fmtSize(x.size || 0)}</small></span>`;
+      return `<li class="file-tile">
+        ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="file-open">${inner}</a>` : `<span class="file-open">${inner}</span>`}
+        <button class="file-del" data-action="delete" data-kind="dfile" data-a="${act.id}" data-id="${x.id}" aria-label="Rimuovi ${esc(x.name)}">${ICON.x}</button>
+      </li>`;
+    }).join("");
+
+    const up = lastStatus?.uploading || 0;
+    $("#upload-note").innerHTML = up
+      ? `<b>Caricamento in corso: ${up} file…</b>`
+      : lastStatus?.mode === "local"
+        ? "Modalità locale: i file restano solo in questa pagina."
+        : "I file vanno nel repo GitHub del progetto, che è <b>pubblico</b>: chiunque abbia il link può vederli.";
+
+    // decisioni, da decidere
+    $("#p-count-dec").textContent = d.decisions.length || "";
+    $("#p-dec").innerHTML = d.decisions.length ? sortDecisions(d.decisions).map((x) => decisionRow(x, "ddec", act.id)).join("") : `<li class="empty">Nessuna decisione presa.</li>`;
+    const openPts = d.open.filter((o) => !o.done).length;
+    $("#p-count-open").textContent = d.open.length ? String(openPts) : "";
+    $("#p-open").innerHTML = d.open.length ? d.open.map((o) => simpleRow(o, { kind: "dopen", a: act.id })).join("") : `<li class="empty">Nessun punto in sospeso.</li>`;
+
+    // note: si aggiornano solo quando cambi attività (mai mentre scrivi)
+    const note = $("#p-note");
+    if (shownNoteFor !== act.id) { note.value = d.note; shownNoteFor = act.id; }
+  }
+
+  // ---------- in comune ----------
+  function renderList(data, l) {
+    const items = data[l.key];
+    $(`#count-${l.key}`).textContent = items.length ? String(items.filter((x) => !x.done).length) : "";
+    $(`#list-${l.key}`).innerHTML = items.length ? items.map((it) => simpleRow(it, { kind: "real", list: l.key })).join("") : `<li class="empty">${l.empty}</li>`;
+  }
+  function renderDecisions(data) {
+    $("#count-decisions").textContent = data.decisions.length || "";
+    $("#decisions").innerHTML = data.decisions.length ? sortDecisions(data.decisions).map((d) => decisionRow(d, "decision")).join("") : `<li class="empty">Nessuna decisione registrata.</li>`;
+  }
+
+  // ---------- foglio: modifica elemento ----------
+  function findItem({ kind, list, a, id }) {
+    if (kind === "real") return lastData?.[list]?.find((x) => x.id === id);
+    if (kind === "decision") return lastData?.decisions.find((x) => x.id === id);
+    if (kind === "dtask") return Model.get(a).tasks.find((x) => x.id === id);
+    if (kind === "dopen") return Model.get(a).open.find((x) => x.id === id);
+    if (kind === "ddec") return Model.get(a).decisions.find((x) => x.id === id);
+    return null;
+  }
+
+  function openSheet(ref) {
+    const item = findItem(ref);
+    if (!item) return;
+    editing = ref;
+    const titles = { real: LISTS.find((l) => l.key === ref.list)?.title, decision: "Decisione", ddec: "Decisione", dtask: "Task", dopen: "Da decidere" };
+    $("#sheet-title").textContent = titles[ref.kind] || "Modifica";
+    $("#sheet-text").value = item.text;
+    const isTask = ref.kind === "dtask", isDec = ref.kind === "decision" || ref.kind === "ddec";
+    $("#sheet-pri-wrap").hidden = !isTask;
+    $("#sheet-ms-wrap").hidden = !isTask;
+    $("#sheet-date-wrap").hidden = !(isTask || isDec);
+    $("#sheet-date-label").textContent = isTask ? "Scadenza" : "Data";
+    if (isTask) {
+      root.querySelectorAll("input[name=sheet-pri]").forEach((r) => (r.checked = r.value === (item.priority || "media")));
+      $("#sheet-ms").innerHTML = milestoneOptions(Model.activity(ref.a)?.area, item.milestone || "", "Nessun traguardo");
+      $("#sheet-date").value = item.due || "";
+    } else if (isDec) {
+      $("#sheet-date").value = item.date || todayISO();
+    }
+    $("#sheet").showModal();
+    const ta = $("#sheet-text");
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+
+  function onSheetClose() {
+    const ed = editing;
+    editing = null;
+    if (!ed) return;
+    const item = findItem(ed);
+    if (!item) return;
+    const text = $("#sheet-text").value.trim();
+    const date = $("#sheet-date").value;
+    switch (ed.kind) {
+      case "real": if (text && text !== item.text) store.editItem(ed.list, ed.id, text); break;
+      case "decision":
+        if ((text && text !== item.text) || (date && date !== item.date)) store.editDecision(ed.id, { text, date });
+        break;
+      case "ddec": Model.editDecision(ed.a, ed.id, { text, date }); break;
+      case "dtask": {
+        const priority = root.querySelector("input[name=sheet-pri]:checked")?.value || item.priority;
+        Model.editTask(ed.a, ed.id, { text, priority, due: date, milestone: $("#sheet-ms").value });
+        break;
+      }
+      case "dopen": Model.editOpen(ed.a, ed.id, { text }); break;
+    }
+  }
+
+  // ---------- foglio: nuova / modifica attività ----------
+  function fillActFormArea(areaId, keepUntil = "", keepGroup = "") {
+    $("#af-group").innerHTML = `<option value="">Nessun gruppo (card a sé)</option>` +
+      Model.groupsOf(areaId).map((g) => `<option value="${esc(g.id)}" ${g.id === keepGroup ? "selected" : ""}>${esc(g.name)}</option>`).join("");
+    $("#af-until").innerHTML = milestoneOptions(areaId, keepUntil, "Continua dopo il lancio");
+  }
+
+  function openActSheet(id, areaId, groupId = "") {
+    const f = $("#act-form");
+    f.reset();
+    const act = id ? Model.activity(id) : null;
+    editingActivity = act ? act.id : `new:${areaId}`;
+    $("#act-sheet-title").textContent = act ? "Modifica attività" : "Nuova attività";
+    $("#af-delete").hidden = !act;
+    const area = act ? act.area : areaId;
+    f.querySelectorAll("input[name=area]").forEach((r) => (r.checked = r.value === area));
+    f.querySelectorAll("input[name=owner]").forEach((r) => (r.checked = r.value === (act?.owner || "Ibrido")));
+    f.name.value = act?.name || "";
+    f.hint.value = act?.hint || "";
+    fillActFormArea(area, act?.until || "", act ? act.group : groupId);
+    $("#act-sheet").showModal();
+    f.name.focus();
+  }
+
+  function onActSheetClose() {
+    const key = editingActivity;
+    editingActivity = null;
+    if (!key) return;
+    const f = $("#act-form");
+    const vals = {
+      name: f.name.value,
+      area: f.querySelector("input[name=area]:checked")?.value,
+      group: f.group.value,
+      owner: f.querySelector("input[name=owner]:checked")?.value || "Ibrido",
+      hint: f.hint.value,
+      until: f.until.value,
+    };
+    if (!vals.name.trim()) return;
+    if (key.startsWith("new:")) {
+      const id = Model.addActivity(vals);
+      if (id) { mobileArea = vals.area; showToast(`«${vals.name.trim()}» aggiunta in ${areaById(vals.area).name}${vals.group ? " › " + Model.group(vals.group).name : ""}`); }
+    } else {
+      Model.editActivity(key, vals);
+    }
+  }
+
+  // ---------- foglio: gruppo ----------
+  function openGroupSheet(id, areaId) {
+    const f = $("#group-form");
+    f.reset();
+    const g = id ? Model.group(id) : null;
+    editingGroup = g ? g.id : `new:${areaId}`;
+    const area = areaById(g ? g.area : areaId);
+    $("#group-sheet-title").textContent = g ? "Modifica gruppo" : "Nuovo gruppo";
+    $("#group-area-note").textContent = g
+      ? `Area ${area.name} · ${Model.blocks(area.id).find((b) => b.group?.id === g.id)?.acts.length || 0} attività`
+      : `Nell'area ${area.name}. Poi aggiungi le attività con il + del gruppo.`;
+    $("#group-move").hidden = !g;
+    $("#group-delete").hidden = !g;
+    $("#group-delete-note").hidden = !g;
+    f.name.value = g?.name || "";
+    $("#group-sheet").showModal();
+    f.name.focus();
+  }
+  function onGroupSheetClose() {
+    const key = editingGroup;
+    editingGroup = null;
+    if (!key) return;
+    const name = $("#group-form").name.value;
+    if (!name.trim()) return;
+    if (key.startsWith("new:")) { Model.addGroup(key.slice(4), name); mobileArea = key.slice(4); }
+    else Model.renameGroup(key, name);
+  }
+
+  // ---------- foglio: traguardi ----------
+  function openMsSheet() {
+    msWork = Object.fromEntries(AREAS.map((a) => [a.id, a.milestones.map((m) => ({ ...m }))]));
+    msArea = AREAS.some((a) => a.id === mobileArea) ? mobileArea : "app";
+    renderMsSheet();
+    $("#ms-sheet").showModal();
+  }
+  function renderMsSheet(focusLast = false) {
+    $("#ms-area").innerHTML = AREAS.map((a) =>
+      `<button type="button" role="tab" aria-selected="${msArea === a.id}" class="${msArea === a.id ? "on" : ""}" data-action="ms-area" data-value="${a.id}">${a.name}</button>`).join("");
+    const list = msWork[msArea];
+    $("#ms-list").innerHTML = list.map((m, i) => `
+      <li class="ms-row ${msArea}">
+        <span class="ms-n">${i + 1}</span>
+        <input data-i="${i}" value="${esc(m.name)}" placeholder="Nome del traguardo" class="text-input" aria-label="Traguardo ${i + 1}">
+        <button type="button" class="mini-btn danger" data-action="ms-del" data-i="${i}" aria-label="Elimina">${ICON.trash}</button>
+        <span class="drag-handle" data-i="${i}" role="button" tabindex="0" aria-label="Trascina per spostare (oppure usa le frecce su e giù)" title="Trascina per spostare">${ICON.grip}</span>
+      </li>`).join("") + `<li class="ms-row launch"><span class="ms-n">${ICON.flag}</span><span class="ms-launch">Lancio <small>comune a tutte le aree</small></span></li>`;
+    if (focusLast) $("#ms-list").querySelectorAll("input")[list.length - 1]?.focus();
+  }
+  function moveMilestone(from, to) {
+    const list = msWork?.[msArea];
+    if (!list || from === to || to < 0 || to >= list.length) return;
+    list.splice(to, 0, list.splice(from, 1)[0]);
+    renderMsSheet();
+  }
+
+  /** trascinamento dei traguardi con la maniglia ≡ (mouse e dito, con i pointer events) */
+  function setupMilestoneDrag() {
+    const listEl = $("#ms-list");
+    let drag = null;
+    listEl.addEventListener("pointerdown", (e) => {
+      const handle = e.target.closest(".drag-handle");
+      if (!handle || (e.pointerType === "mouse" && e.button !== 0)) return;
+      e.preventDefault();
+      const rows = [...listEl.querySelectorAll(".ms-row:not(.launch)")];
+      const li = handle.closest(".ms-row");
+      const from = rows.indexOf(li);
+      const rects = rows.map((r) => r.getBoundingClientRect());
+      drag = { id: e.pointerId, handle, li, rows, rects, from, to: from, startY: e.clientY };
+      handle.setPointerCapture(e.pointerId);
+      li.classList.add("dragging");
+      listEl.classList.add("is-dragging");
+    });
+    listEl.addEventListener("pointermove", (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const { rects, from, rows, li } = drag;
+      const base = rects[from];
+      const dy = Math.max(rects[0].top - base.top, Math.min(rects[rects.length - 1].top - base.top, e.clientY - drag.startY));
+      li.style.transform = `translateY(${dy}px)`;
+      const center = base.top + base.height / 2 + dy;
+      let to = from;
+      rects.forEach((r, k) => {
+        const mid = r.top + r.height / 2;
+        if (k > from && center >= mid - r.height / 4) to = k;
+        if (k < from && center <= mid + r.height / 4 && k < to) to = k;
+      });
+      drag.to = to;
+      const h = base.height;
+      rows.forEach((r, k) => {
+        if (k === from) return;
+        const shift = from < to && k > from && k <= to ? -h : from > to && k >= to && k < from ? h : 0;
+        r.style.transform = shift ? `translateY(${shift}px)` : "";
+      });
+    });
+    const end = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const { from, to } = drag;
+      drag = null;
+      listEl.classList.remove("is-dragging");
+      moveMilestone(from, to);
+      if (from === to) renderMsSheet();
+    };
+    listEl.addEventListener("pointerup", end);
+    listEl.addEventListener("pointercancel", end);
+    listEl.addEventListener("keydown", (e) => {
+      const handle = e.target.closest(".drag-handle");
+      if (!handle || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      e.preventDefault();
+      const i = Number(handle.dataset.i), j = i + (e.key === "ArrowUp" ? -1 : 1);
+      moveMilestone(i, j);
+      listEl.querySelector(`.drag-handle[data-i="${j}"]`)?.focus();
+    });
+  }
+  function onMsSheetClose() {
+    const work = msWork;
+    msWork = null;
+    if (!work) return;
+    for (const a of AREAS) {
+      const before = JSON.stringify(a.milestones.map((m) => [m.id, m.name]));
+      const after = JSON.stringify(work[a.id].filter((m) => m.name.trim()).map((m) => [m.id, m.name.trim()]));
+      if (before !== after) Model.setMilestones(a.id, work[a.id]);
+    }
+  }
+
+  // ---------- impostazioni ----------
+  function openSettings() {
+    $("#token").value = "";
+    if (lastStatus?.mode === "local") setTokenMsg("Modalità locale: le modifiche restano in memoria e non vengono salvate su GitHub.", "");
+    else setTokenMsg(store.hasToken() ? "Token già inserito." : "Nessun token inserito.", store.hasToken() ? "ok" : "");
+    $("#settings").showModal();
+  }
+  function setTokenMsg(text, kind) {
+    const el = $("#token-msg");
+    el.textContent = text;
+    el.className = "token-msg" + (kind ? " " + kind : "");
+  }
+  function saveToken() {
+    const v = $("#token").value.trim();
+    if (v) store.setToken(v);
+    if (!store.hasToken()) { setTokenMsg("Incolla prima il token.", "err"); return; }
+    setTokenMsg("Verifico…", "");
+    store.checkToken().then((r) => {
+      if (r.ok) { setTokenMsg("Token valido: puoi salvare.", "ok"); $("#token").value = ""; }
+      else setTokenMsg(r.error, "err");
+    });
+  }
+
+  // ---------- toast ----------
+  function showToast(msg, undo) {
     const el = $("#toast");
-    el.innerHTML = `<span>${esc(msg)}</span><button data-action="undo">Annulla</button>`;
-    el.querySelector("button")._undo = undo;
+    el.innerHTML = `<span>${esc(msg)}</span>${undo ? '<button data-action="undo">Annulla</button>' : ""}`;
+    el.classList.toggle("plain", !undo);
+    if (undo) el.querySelector("button")._undo = undo;
     el.hidden = false;
+    requestAnimationFrame(() => el.classList.add("show"));
     clearTimeout(undoTimer);
-    undoTimer = setTimeout(hideToast, 6000);
+    undoTimer = setTimeout(hideToast, undo ? 6000 : 3000);
   }
-  function hideToast() { $("#toast").hidden = true; }
+  const showUndo = (msg, undo) => showToast(msg, undo);
+  function hideToast() {
+    const el = $("#toast");
+    el.classList.remove("show");
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => { el.hidden = true; }, 250);
+  }
 
-  function ring(pct) {
-    const r = 26, c = 2 * Math.PI * r;
-    return `<svg class="ring" viewBox="0 0 64 64" aria-hidden="true">
-      <circle cx="32" cy="32" r="${r}" class="ring-bg"/>
-      <circle cx="32" cy="32" r="${r}" class="ring-fg" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - pct)}"/>
-    </svg>`;
+  // ---------- stato ----------
+  function renderSync(status) {
+    let cls = "", label = "";
+    if (status.error) { cls = "err"; label = "Errore"; }
+    else if (status.mode === "local") { cls = "local"; label = "Locale"; }
+    else if (status.saving) { cls = "busy"; label = "Salvo…"; }
+    else if (status.pending) { cls = "busy"; label = "In attesa…"; }
+    else if (!status.canWrite) { cls = "ro"; label = "Sola lettura"; }
+    else if (status.lastSaved) { cls = "ok"; label = `Salvato ${hhmm(status.lastSaved)}`; }
+    else if (status.lastSync) { cls = "ok"; label = `Aggiornato ${hhmm(status.lastSync)}`; }
+    root.querySelectorAll(".sync").forEach((el) => {
+      el.className = "sync " + cls;
+      el.innerHTML = label ? `<i></i><span>${esc(label)}</span>` : "";
+    });
+  }
+
+  function renderBanner(status) {
+    const err = status.error;
+    let html = "";
+    if (err) {
+      const tokenIssue = /token|permesso/i.test(err);
+      html = `<div class="banner err" role="alert"><span>${esc(err)}</span>
+        <button data-action="${tokenIssue ? "settings" : "retry"}">${tokenIssue ? "Impostazioni" : "Riprova"}</button></div>`;
+    } else if (status.mode === "local") {
+      html = `<div class="banner info"><span>Modalità locale: le modifiche restano in memoria e non vengono salvate.</span></div>`;
+    } else if (!status.canWrite) {
+      html = `<div class="banner info"><span>Sola lettura: inserisci il token GitHub per salvare.</span>
+        <button data-action="settings">Inserisci</button></div>`;
+    }
+    const b = $("#banner");
+    if (b.innerHTML !== html) b.innerHTML = html;
+  }
+
+  function renderFoot(data, status) {
+    const parts = [];
+    if (data?.updatedAt) {
+      const d = new Date(data.updatedAt);
+      if (!isNaN(d)) parts.push(`Dati aggiornati il ${d.toLocaleDateString("it-IT", { day: "numeric", month: "long" })} alle ${hhmm(d)}`);
+    }
+    parts.push(status.mode === "local" ? "modalità locale" : "salvataggio su GitHub");
+    $("#foot").textContent = parts.join(" · ");
   }
 
   function render(data, status) {
-    if (!root) return;
-    // stato di sincronizzazione
-    const sync = status.mode === "local" ? "Modalità locale (non salva)"
-      : status.saving ? "Salvataggio…"
-      : status.pending ? "Modifiche da salvare…"
-      : status.lastSaved ? `Salvato ✓ ${hhmm(status.lastSaved)}`
-      : status.lastSync ? `Aggiornato ${hhmm(status.lastSync)}` : "";
-    $("#sync").textContent = sync;
-    $("#banner").innerHTML = status.error
-      ? `<div class="banner">${esc(status.error)} <button data-action="${status.error.includes("token") || status.error.includes("Token") ? "settings" : "retry"}">${status.error.toLowerCase().includes("token") ? "Impostazioni" : "Riprova"}</button></div>`
-      : !status.canWrite ? `<div class="banner info">Sola lettura: inserisci il token GitHub per salvare. <button data-action="settings">Inserisci</button></div>` : "";
+    if (!root || !status) return;
+    lastData = data;
+    lastStatus = status;
+    const isDesk = view === "desk";
+    $("#desk-top").hidden = !isDesk;
+    $("#view-desk").hidden = !isDesk;
+    $("#act-nav").hidden = isDesk;
+    $("#view-activity").hidden = isDesk;
+    if (isDesk) document.title = "App notizie · Dashboard";
+    renderSync(status);
+    renderBanner(status);
+    root.classList.toggle("is-loading", !data);
     if (!data) return;
-
-    const done = data.files.filter((f) => f.status === "done").length;
-    const total = data.files.length;
-    const openTasks = data.tasks.filter((t) => !t.done).length;
-    const openPoints = data.open.filter((t) => !t.done).length;
-    $("#summary").innerHTML = `
-      <div class="stat ring-stat">${ring(total ? done / total : 0)}<div><b>${done}/${total}</b><span>file completati</span></div></div>
-      <div class="stat"><b>${openTasks}</b><span>task aperti</span></div>
-      <div class="stat"><b>${openPoints}</b><span>punti da definire</span></div>
-      <div class="stat"><b>${esc(data.phase)}</b><span>fase attuale</span></div>`;
-
-    $("#phases").innerHTML = data.phases.map((p, i) => `
-      ${i ? '<span class="arrow">→</span>' : ""}
-      <button class="phase ${p === data.phase ? "on" : ""}" data-action="phase" data-value="${esc(p)}">${esc(p)}</button>`).join("");
-
-    $("#filters").innerHTML = ["Tutti", "Notizie", "App"].map((f) =>
-      `<button class="${f === filter ? "on" : ""}" data-action="filter" data-value="${f}">${f}</button>`).join("");
-
-    const files = data.files.filter((f) => filter === "Tutti" || f.branch.startsWith(filter));
-    $("#files").innerHTML = files.map((f) => `
-      <button class="file ${f.status}" data-action="file" data-id="${f.id}">
-        <span class="n">${f.n}</span>
-        <span class="name">${esc(f.name)}</span>
-        <span class="branch">${esc(f.branch)}</span>
-        <span class="pill">${STATUS_LABEL[f.status] || f.status}</span>
-      </button>`).join("");
-
-    for (const l of LISTS) {
-      const items = data[l.key];
-      $(`#list-${l.key}`).innerHTML = items.length ? items.map((it) => `
-        <li class="${it.done ? "done" : ""}">
-          <input type="checkbox" ${it.done ? "checked" : ""} data-action="toggle" data-list="${l.key}" data-id="${it.id}" aria-label="Spunta">
-          <span class="text" data-action="edit" data-list="${l.key}" data-id="${it.id}">${esc(it.text)}</span>
-          <button class="del" data-action="delete" data-list="${l.key}" data-id="${it.id}" aria-label="Elimina">✕</button>
-        </li>`).join("") : `<li class="empty">Nessun elemento</li>`;
+    if (pendingRoute) { pendingRoute = false; route(); return; }
+    if (isDesk) {
+      renderRoadmap();
+      renderPriorities(data);
+      renderAreas();
+      LISTS.forEach((l) => renderList(data, l));
+      renderDecisions(data);
+      for (const el of [$("#board"), $("#board-open")]) {
+        el.hidden = !data.boardUrl;
+        if (data.boardUrl) el.href = data.boardUrl;
+      }
+    } else {
+      renderActivity();
     }
-
-    const decs = [...data.decisions].sort((a, b) => b.date.localeCompare(a.date));
-    $("#decisions").innerHTML = decs.length ? decs.map((d) => `
-      <li>
-        <span class="date">${esc(d.date.split("-").reverse().join("/"))}</span>
-        <span class="text" data-action="edit" data-list="decisions" data-id="${d.id}">${esc(d.text)}</span>
-        <button class="del" data-action="delete" data-list="decisions" data-id="${d.id}" aria-label="Elimina">✕</button>
-      </li>`).join("") : `<li class="empty">Nessuna decisione</li>`;
-
-    $("#board").href = data.boardUrl || "#";
+    renderFoot(data, status);
+    if (editing && !findItem(editing)) { editing = null; $("#sheet").close("cancel"); }
   }
 
   window.UI = { mount, render };
