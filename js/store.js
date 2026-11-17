@@ -9,7 +9,7 @@
  *
  * API pubblica (window.Store):
  *   Store.data                         -> stato corrente (sola lettura per la UI!)
- *   Store.status                       -> { mode, saving, pending, error, lastSync, canWrite }
+ *   Store.status                       -> { mode, saving, pending, error, lastSync, lastSaved, canWrite }
  *   Store.subscribe(fn)                -> fn(data, status) a ogni cambiamento; ritorna unsubscribe
  *   Store.init()                       -> Promise, carica i dati
  *   Store.refresh()                    -> ricarica dal repo
@@ -43,6 +43,7 @@
   let saving = false;
   let error = null;
   let lastSync = null;
+  let lastSaved = null;   // ultimo salvataggio riuscito su GitHub
   const subs = new Set();
 
   // ---------- utilità ----------
@@ -76,6 +77,7 @@
       pending: queue.length,
       error,
       lastSync,
+      lastSaved,
       canWrite: C.localMode || !!token(),
     };
   }
@@ -172,7 +174,7 @@
           queue = queue.slice(batch.length);   // operazioni arrivate durante il salvataggio restano in coda
           rebuildLocal();
           error = null;
-          lastSync = new Date();
+          lastSync = lastSaved = new Date();
           ok = true;
           break;
         }

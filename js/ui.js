@@ -25,6 +25,7 @@
     { key: "ideas", title: "Idee", placeholder: "Nuova idea" },
   ];
   const $ = (sel) => root.querySelector(sel);
+  const hhmm = (d) => d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
 
   function mount(el, s) {
     root = el;
@@ -160,7 +161,8 @@
     const sync = status.mode === "local" ? "Modalità locale (non salva)"
       : status.saving ? "Salvataggio…"
       : status.pending ? "Modifiche da salvare…"
-      : status.lastSync ? (status.canWrite ? "Salvato ✓" : "Aggiornato ✓") : "";
+      : status.lastSaved ? `Salvato ✓ ${hhmm(status.lastSaved)}`
+      : status.lastSync ? `Aggiornato ${hhmm(status.lastSync)}` : "";
     $("#sync").textContent = sync;
     $("#banner").innerHTML = status.error
       ? `<div class="banner">${esc(status.error)} <button data-action="${status.error.includes("token") || status.error.includes("Token") ? "settings" : "retry"}">${status.error.toLowerCase().includes("token") ? "Impostazioni" : "Riprova"}</button></div>`

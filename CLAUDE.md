@@ -29,7 +29,8 @@ window.UI = {
 ```
 
 - `data` è lo stato corrente (vedi struttura in `docs/ISTRUZIONI-CHAT-CLAUDE.md`). **Sola lettura.**
-- `status` = `{ mode: "github"|"local", saving, pending, error, lastSync, canWrite }`.
+- `status` = `{ mode: "github"|"local", saving, pending, error, lastSync, lastSaved, canWrite }`.
+- Quando cambi CSS/JS, incrementa `?v=` negli URL in `index.html` (Pages tiene i file in cache 10 minuti).
 - Per modificare i dati usa **solo** le azioni di `window.Store` (salvano da sole, con merge sicuro):
   `setPhase(name)`, `cycleFileStatus(id)`, `setFileStatus(id, s)`,
   `addItem(list, text)`, `toggleItem(list, id)`, `editItem(list, id, text)`, `removeItem(list, id) → undo()`,
