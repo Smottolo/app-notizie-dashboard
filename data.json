@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T07:50:47.943Z",
+  "updatedAt": "2026-11-18T07:50:51.254Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -272,7 +272,7 @@
       "area": "app",
       "group": "",
       "name": "Test e pubblicazione",
-      "owner": "Ibrido",
+      "owner": "Andrea",
       "hint": "",
       "until": "",
       "status": "todo",
