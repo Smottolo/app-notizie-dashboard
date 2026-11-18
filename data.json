@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T07:50:27.057Z",
+  "updatedAt": "2026-11-18T07:50:35.558Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -197,7 +197,7 @@
       "area": "app",
       "group": "g-acc",
       "name": "Preferenze e notifiche",
-      "owner": "Agente",
+      "owner": "Ibrido",
       "hint": "",
       "until": "",
       "status": "todo",
