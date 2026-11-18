@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T18:42:02.178Z",
+  "updatedAt": "2026-11-18T21:52:47.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -323,7 +323,7 @@
       "hint": "",
       "until": "",
       "status": "todo",
-      "note": "",
+      "note": "Le schede di grading degli argomenti raccolgono le fonti trovate (campo fonti_trovate): usarle come base per l'elenco fonti.",
       "log": [],
       "tasks": [],
       "open": [],
@@ -390,7 +390,13 @@
       "note": "",
       "log": [],
       "tasks": [],
-      "open": [],
+      "open": [
+        {
+          "id": "o20261118n",
+          "text": "Grading degli articoli: definire i criteri (si costruisce quando ci saranno i primi articoli)",
+          "done": false
+        }
+      ],
       "decisions": [],
       "files": []
     },
@@ -498,12 +504,132 @@
       "owner": "Andrea",
       "hint": "Solo nazionale, per ora",
       "until": "",
-      "status": "todo",
-      "note": "",
-      "log": [],
+      "status": "doing",
+      "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nSistema di grading argomenti v0.1: https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo di grading in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).",
+      "log": [
+        {
+          "id": "l20261116a",
+          "date": "2026-11-16",
+          "text": "Creato il file Argomenti con 116 argomenti in 13 aree",
+          "detail": "Per ogni argomento: interesse, fonti, valore aggiunto, rischi e verdetto. Proposta iniziale: 56 dentro, 38 da valutare, 22 fuori. In fondo 6 domande aperte. https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz",
+          "files": [],
+          "source": "chat",
+          "created": 1795038767107
+        },
+        {
+          "id": "l20261118a",
+          "date": "2026-11-18",
+          "text": "Scritto il Sistema di grading argomenti v0.1",
+          "detail": "11 criteri in 3 pilastri (Fattibilità, Rischio, Valore) con rubrica 1-5 a soglie misurabili; 6 criteri bloccanti; certezza dei voti (Misurato 1,0 / Verificato 0,8 / Stimato 0,5); punteggio P 0-100, certezza C, punteggio finale F = P × C; classi A-D, regole per i pareggi, test di robustezza su 3 profili di pesi; scheda argomento in JSON; procedura di calibrazione Andrea vs agente e regole per l'agente. Basato su RICE (Intercom), Admiralty Code (NATO) e valori-notizia (Harcup e O'Neill). Esempio di calcolo su Scioperi dei trasporti con voti non verificati. https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF",
+          "files": [],
+          "source": "chat",
+          "created": 1795038767107
+        },
+        {
+          "id": "l20261118b",
+          "date": "2026-11-18",
+          "text": "Aggiunti al grading il profilo Prototipo e il ciclo continuo",
+          "detail": "Profilo Prototipo: filtro perle (V1 o V2 stimati 4-5 → messo da parte), 6 criteri con pesi F2 25, F3 20, R1 20, F6 15, F4 10, R2 10, valore per il lettore a peso zero, a parità vince l'argomento con meno valore. Ciclo continuo: stati degli argomenti (da valutare, perla, palestra, in app, rimandato, escluso), 3 vie per argomenti nuovi (Andrea, agente che segue le fonti ufficiali, divisione in sotto-argomenti), revisione ogni 6 mesi.",
+          "files": [],
+          "source": "chat",
+          "created": 1795038767107
+        }
+      ],
       "tasks": [],
-      "open": [],
-      "decisions": [],
+      "open": [
+        {
+          "id": "o20261118a",
+          "text": "Sport: solo parte istituzionale ed economica, o anche i risultati?",
+          "done": false
+        },
+        {
+          "id": "o20261118b",
+          "text": "Esteri: va bene la regola \"entra solo con un aggancio italiano esplicito\"?",
+          "done": false
+        },
+        {
+          "id": "o20261118c",
+          "text": "Cronaca giudiziaria: grandi casi solo dagli atti ufficiali, o fuori del tutto?",
+          "done": false
+        },
+        {
+          "id": "o20261118d",
+          "text": "Vaticano e Chiesa: li trattiamo come notizie nazionali?",
+          "done": false
+        },
+        {
+          "id": "o20261118e",
+          "text": "Fact-checking delle bufale: diventa una sezione dell'app?",
+          "done": false
+        },
+        {
+          "id": "o20261118f",
+          "text": "Partiti e sondaggi: inclusi con regole precise (solo fatti, sondaggi con metodo e campione)?",
+          "done": false
+        },
+        {
+          "id": "o20261118g",
+          "text": "Grading: vanno bene i pesi dei profili Fase 1 ed Espansione?",
+          "done": false
+        },
+        {
+          "id": "o20261118h",
+          "text": "Grading: quali 3 testate di area diversa per il test di neutralità (R1)?",
+          "done": false
+        },
+        {
+          "id": "o20261118i",
+          "text": "Grading: quali 5 testate di riferimento per il valore aggiunto (V2)?",
+          "done": false
+        },
+        {
+          "id": "o20261118j",
+          "text": "Grading: quale termine di riferimento fisso per Google Trends (V1)?",
+          "done": false
+        },
+        {
+          "id": "o20261118k",
+          "text": "Grading: teniamo le soglie delle classi (70 / 55 / 40) fino alla calibrazione?",
+          "done": false
+        },
+        {
+          "id": "o20261118l",
+          "text": "Grading: quali 10 argomenti usare per la calibrazione?",
+          "done": false
+        },
+        {
+          "id": "o20261118m",
+          "text": "Grading: lo script che calcola P, C e F lo facciamo subito con Claude Code o basta un foglio di calcolo?",
+          "done": false
+        }
+      ],
+      "decisions": [
+        {
+          "id": "d20261118a",
+          "date": "2026-11-18",
+          "text": "Si parte dagli argomenti facili (più fonti, meno bias politico) e si espande gradualmente verso quelli più difficili"
+        },
+        {
+          "id": "d20261118b",
+          "date": "2026-11-18",
+          "text": "Prima il grading degli argomenti, poi quello degli articoli. Per scegliere gli argomenti si usa un imbuto: screening di tutti, studio approfondito solo della rosa"
+        },
+        {
+          "id": "d20261118c",
+          "date": "2026-11-18",
+          "text": "Il sistema di grading deve essere agent friendly: all'inizio valuta Andrea, poi si delega a un agente dopo la calibrazione"
+        },
+        {
+          "id": "d20261118d",
+          "date": "2026-11-18",
+          "text": "Per ora si usa il profilo Prototipo (solo facilità e rischio) per scegliere 3-5 argomenti palestra; le perle restano da parte finché non saranno migliorati il grading e la scrittura degli articoli"
+        },
+        {
+          "id": "d20261118e",
+          "date": "2026-11-18",
+          "text": "Gli argomenti non si consumano: il file Argomenti è un serbatoio che cresce e a ogni ciclo si valutano solo i nuovi o quelli da rivedere"
+        }
+      ],
       "files": []
     },
     {
@@ -555,7 +681,17 @@
       "files": []
     }
   ],
-  "log": [],
+  "log": [
+    {
+      "id": "l20261118c",
+      "date": "2026-11-18",
+      "text": "Aggiunte al gruppo Brainstorming tre attività",
+      "detail": "Formati dei contenuti (Ibrido, si chiude con Linea editoriale), Cosa ci rende diversi (Andrea), Concorrenti e ispirazioni (Agente).",
+      "files": [],
+      "source": "chat",
+      "created": 1795038767107
+    }
+  ],
   "files": [],
   "tasks": [],
   "open": [
