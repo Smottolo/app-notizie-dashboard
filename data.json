@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T18:29:36.000Z",
+  "updatedAt": "2026-11-18T18:33:34.801Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -76,7 +76,8 @@
       "order": [
         "a:f1",
         "g:g-pro",
-        "a:f6"
+        "a:f6",
+        "g:gmwmgm9995kh"
       ]
     },
     {
@@ -130,6 +131,11 @@
       "id": "g-pro",
       "area": "content",
       "name": "Produzione"
+    },
+    {
+      "id": "gmwmgm9995kh",
+      "area": "content",
+      "name": "Brainstorming"
     }
   ],
   "activities": [
