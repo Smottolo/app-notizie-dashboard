@@ -55,6 +55,18 @@ groups.forEach((g, i) => {
 });
 uniq(groups, "groups");
 
+// diario: { id, date, text, detail?, files: [id di file dello stesso contenitore], source? }
+function checkLog(list, where, files) {
+  arr(list, where).forEach((e, k) => {
+    const w = `${where}[${k}]`;
+    if (!isStr(e.id) || !isStr(e.text)) errors.push(`${w}: servono id e text`);
+    if (!isDate(e.date)) errors.push(`${w}: date deve essere AAAA-MM-GG`);
+    if (e.detail !== undefined && typeof e.detail !== "string") errors.push(`${w}: detail deve essere un testo`);
+    if (e.source !== undefined && !["dashboard", "chat"].includes(e.source)) errors.push(`${w}: source deve essere "dashboard" o "chat"`);
+    (e.files ?? []).forEach((id) => { if (!files.some((f) => f.id === id)) errors.push(`${w}: allegato "${id}" non è tra i file`); });
+  });
+}
+
 // attività
 const acts = arr(d.activities, "activities");
 acts.forEach((a, i) => {
@@ -66,6 +78,7 @@ acts.forEach((a, i) => {
   if (!STATUSES.includes(a.status)) errors.push(`${w}: status deve essere todo, doing o done`);
   if (!msOk(a.until, a.area)) errors.push(`${w}: until "${a.until}" non è un traguardo della sua area`);
   if (typeof a.note !== "string") errors.push(`${w}: note deve essere un testo`);
+  checkLog(a.log ?? [], `${w}.log`, a.files ?? []);
   arr(a.tasks, `${w}.tasks`).forEach((t, k) => {
     const tw = `${w}.tasks[${k}]`;
     if (!isStr(t.id) || !isStr(t.text)) errors.push(`${tw}: servono id e text`);
@@ -83,11 +96,14 @@ acts.forEach((a, i) => {
   arr(a.files, `${w}.files`).forEach((f, k) => {
     if (!isStr(f.id) || !isStr(f.name) || !isStr(f.path)) errors.push(`${w}.files[${k}]: servono id, name e path`);
   });
-  ["tasks", "open", "decisions", "files"].forEach((s) => Array.isArray(a[s]) && uniq(a[s], `${w}.${s}`));
+  ["log", "tasks", "open", "decisions", "files"].forEach((s) => Array.isArray(a[s]) && uniq(a[s], `${w}.${s}`));
 });
 uniq(acts, "activities");
 
 // in comune
+checkLog(d.log ?? [], "log", d.files ?? []);
+if (Array.isArray(d.log)) uniq(d.log, "log");
+arr(d.files ?? [], "files").forEach((f, k) => { if (!isStr(f.id) || !isStr(f.name) || !isStr(f.path)) errors.push(`files[${k}]: servono id, name e path`); });
 for (const list of ["tasks", "open", "ideas"]) {
   arr(d[list], list).forEach((x, i) => {
     if (!isStr(x.id)) errors.push(`${list}[${i}]: id mancante`);
@@ -107,5 +123,5 @@ if (errors.length) {
   console.error(`❌ ${path}: ${errors.length} errori\n - ` + errors.join("\n - "));
   process.exit(1);
 }
-const nTasks = acts.reduce((n, a) => n + a.tasks.length, 0);
-console.log(`✅ ${path} valido (${areas.length} aree, ${groups.length} gruppi, ${acts.length} attività, ${nTasks} task nelle attività, ${d.decisions.length} decisioni in comune)`);
+const nLog = (d.log?.length || 0) + acts.reduce((n, a) => n + (a.log?.length || 0), 0);
+console.log(`✅ ${path} valido (${areas.length} aree, ${groups.length} gruppi, ${acts.length} attività, ${nLog} voci di diario, ${d.decisions.length} decisioni in comune)`);

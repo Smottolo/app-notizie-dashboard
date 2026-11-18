@@ -14,7 +14,6 @@ Ogni push su `main` va online in circa un minuto.
 | `index.html` | **interfaccia: tuo** | mantieni l'ordine degli script e `<div id="app">` |
 | `js/store.js`, `js/config.js`, `js/main.js` | infrastruttura | non modificare senza chiedere |
 | `data.json` | dati veri | non modificarlo per fare prove (vedi "Sviluppo in locale") |
-| `img/lavagna.jpg` | interfaccia | anteprima statica della lavagna: si aggiorna sostituendo l'immagine |
 | `uploads/` | dati veri | file caricati dalla dashboard (repo **pubblico**: sono pubblici) |
 | `scripts/`, `.github/`, `docs/` | infrastruttura | |
 
@@ -41,7 +40,8 @@ window.UI = {
   - traguardi: `setProgress(areaId, n)`, `setLaunched(bool)`, `setMilestones(areaId, [{id?, name}])`;
   - gruppi: `addGroup`, `renameGroup`, `removeGroup`, `moveBlock(areaId, key, dir)`;
   - attività: `addActivity`, `editActivity(id, patch)`, `removeActivity`, `setActivityStatus`, `setNote`;
-  - dentro un'attività: `addSub/editSub/removeSub(id, sub, …)` (`sub` = `"tasks"` | `"open"` | `"decisions"` | `"files"`),
+  - dentro un'attività: `addSub/editSub/removeSub(id, sub, …)` (`sub` = `"log"` | `"tasks"` | `"open"` | `"decisions"` | `"files"`;
+    con `id` = `""` si agisce sul diario e sui file in comune),
     `uploadFiles(id, FileList) → Promise<{ok, errors}>`, `fileUrl(file)`;
   - token e sync: `hasToken()`, `setToken(t)`, `clearToken()`, `checkToken()`, `refresh()`, `flush()`.
 - L'interfaccia di solito passa da `window.Model` (`js/ui/model.js`), che espone le stesse azioni con nomi comodi.
@@ -59,13 +59,16 @@ La dashboard è una "scrivania" che ricalca la lavagna del progetto (stile appro
 - **Timeline**: i traguardi di ogni area in sequenza + il Lancio comune; tocco = raggiunto (con i precedenti),
   tocco sull'ultimo raggiunto = annulla; foglio "Traguardi" per aggiungere, rinominare, eliminare e
   riordinare trascinando (maniglia ≡).
-- **Priorità** (barra laterale): tutti i task aperti, per urgenza o per traguardo, filtrabili per area.
-- **Tre aree affiancate** (App, Contenuti, Commerciale) con gruppi (intestazione a cartella, modificabili)
+- **Diario del progetto** (il cuore, subito sotto la timeline): cose fatte e decisioni nello stesso flusso,
+  raggruppate per giorno, con l'etichetta dell'attività; ultime 3 giornate + "Mostra tutto"; annotazione
+  veloce (Fatto / Decisione). È quello che le chat di Claude aggiornano a fine sessione.
+- Accanto: **Da decidere** in evidenza (punti aperti generali e delle attività), **Da fare** piccolo
+  (task generali e delle attività in un'unica lista), **Parcheggio idee** richiudibile.
+- **Tre aree affiancate** sotto (App, Contenuti, Commerciale) con gruppi (intestazione a cartella, modificabili)
   e attività; pulsanti "+ Attività" e "+ Gruppo".
-- **Pagina dell'attività** (`#/a/<id>`): chi se ne occupa, stato, orizzonte; task a sinistra, file al centro,
-  decisioni / da decidere / note a destra.
-- **In comune**: task generali, punti da definire, idee, registro decisioni, anteprima della lavagna.
-- Impostazioni per il token; indicatore dello stato di salvataggio ed errori.
+- **Pagina dell'attività** (`#/a/<id>`): chi se ne occupa, stato, orizzonte; diario a sinistra (con dettagli
+  e allegati), file al centro, decisioni / da decidere / da fare / note a destra.
+- In alto: pulsante **Lavagna** (link a `boardUrl`), impostazioni per il token, stato del salvataggio ed errori.
 
 ## Sviluppo in locale
 

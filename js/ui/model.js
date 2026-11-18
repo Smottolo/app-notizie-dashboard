@@ -103,6 +103,26 @@
     removeDecision: (a, id) => S().removeSub(a, "decisions", id),
     addFiles: (a, files) => S().uploadFiles(a, files),
     removeFile: (a, id) => S().removeSub(a, "files", id),
+
+    // ---------- diario (le cose fatte) ----------
+    // a = id attività, oppure "" per il diario "In comune"
+    common: () => ({ log: D()?.log || [], files: D()?.files || [] }),
+    logOf: (a) => (a ? Model.get(a) : Model.common()).log || [],
+    filesOf: (a) => (a ? Model.get(a) : Model.common()).files || [],
+    addLog: (a, fields) => S().addSub(a, "log", fields),
+    editLog: (a, id, patch) => S().editSub(a, "log", id, patch),
+    removeLog: (a, id) => S().removeSub(a, "log", id),
+    /** voci ordinate dalla più recente: per data, poi per momento di inserimento */
+    sortLog: (list) => list.slice().sort((x, y) => String(y.date).localeCompare(String(x.date)) || (y.created || 0) - (x.created || 0)),
+    /** tutte le voci del progetto, con l'attività a cui appartengono (act = null per "In comune") */
+    allLog() {
+      const d = D();
+      if (!d) return [];
+      const out = (d.log || []).map((e) => ({ ...e, act: null, a: "" }));
+      for (const act of d.activities) for (const e of act.log || []) out.push({ ...e, act, a: act.id });
+      return Model.sortLog(out);
+    },
+    lastLog: (a) => Model.sortLog(Model.logOf(a))[0] || null,
   };
 
   window.Model = Model;

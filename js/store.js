@@ -24,15 +24,18 @@
  *   Gruppi:      addGroup(areaId, name) · renameGroup(id, name) · removeGroup(id) · moveBlock(areaId, key, dir)
  *   Attività:    addActivity({area, group, name, owner, hint, until}) · editActivity(id, patch) · removeActivity(id)
  *                setActivityStatus(id, status) · setNote(id, text)
- *   Dentro un'attività (sub = "tasks" | "open" | "decisions" | "files"):
+ *   Dentro un'attività (sub = "log" | "tasks" | "open" | "decisions" | "files"):
  *                addSub(id, sub, fields) · editSub(id, sub, itemId, patch) · removeSub(id, sub, itemId)
- *   File:        uploadFiles(id, FileList) -> Promise   (carica nel repo e aggiunge i riferimenti)
+ *                Con id = "" si agisce sul diario e sui file "In comune" (solo sub "log" e "files").
+ *                "log" è il diario delle cose fatte: { id, date, text, detail, files: [id file], source, created }
+ *   File:        uploadFiles(id, FileList) -> Promise<{ok, errors, ids}>  (carica nel repo e aggiunge i riferimenti)
  */
 (function () {
   const C = window.APP_CONFIG;
   const TOKEN_KEY = "appNotizie.githubToken";
   const LISTS = ["tasks", "open", "ideas"];
-  const SUBS = ["tasks", "open", "decisions", "files"];
+  const SUBS = ["log", "tasks", "open", "decisions", "files"];
+  const TOP_SUBS = ["log", "files"];   // diario e file "In comune"
   const STATUSES = ["todo", "doing", "done"];
   const LAUNCH = "m-launch";
   const REPO_API = `https://api.github.com/repos/${C.owner}/${C.repo}`;
@@ -108,6 +111,8 @@
     });
     LISTS.forEach((l) => (d[l] ??= []));
     d.decisions ??= [];
+    TOP_SUBS.forEach((s) => (d[s] ??= []));
+    [d, ...d.activities].forEach((c) => c.log.forEach((e) => { e.files ??= []; e.detail ??= ""; }));
     fixOrder(d);
     return d;
   }
@@ -243,7 +248,7 @@
     fr.onerror = () => ko(new Error(`Impossibile leggere ${file.name}`));
     fr.readAsArrayBuffer(file);
   });
-  const isReferenced = (d, path) => d?.activities.some((a) => a.files.some((f) => f.path === path));
+  const isReferenced = (d, path) => !!d && (d.activities.some((a) => a.files.some((f) => f.path === path)) || (d.files || []).some((f) => f.path === path));
 
   async function uploadOne(actId, file) {
     if (file.size > MAX_FILE) throw new Error(`«${file.name}» supera i 25 MB.`);
@@ -254,7 +259,7 @@
       rec.path = "";
     } else {
       if (!token()) throw new Error("Inserisci il token GitHub nelle impostazioni per caricare file.");
-      const path = `uploads/${actId}/${id}-${safeName(file.name)}`;
+      const path = `uploads/${actId || "comune"}/${id}-${safeName(file.name)}`;
       const bytes = await readBytes(file);
       const r = await fetch(`${REPO_API}/contents/${path.split("/").map(encodeURIComponent).join("/")}`, {
         method: "PUT",
@@ -266,7 +271,8 @@
       if (!r.ok) throw new Error(`Caricamento di «${file.name}» non riuscito (GitHub ${r.status}).`);
       rec.path = path;
     }
-    apply("file caricato", (d) => { const a = findIn(d.activities, actId); if (a && !findIn(a.files, id)) a.files.push({ ...rec }); });
+    apply("file caricato", (d) => { const a = box(d, actId); if (a && !findIn(a.files, id)) a.files.push({ ...rec }); });
+    return id;
   }
 
   // un file tolto viene cancellato dal repo solo dopo un po' (per lasciare il tempo di annullare)
@@ -298,6 +304,9 @@
 
   // ---------- azioni ----------
   const findIn = (arr, id) => (arr || []).find((x) => x.id === id);
+  /** contenitore di diario/task/file: un'attività, oppure (id "") la parte "In comune" */
+  const box = (d, actId) => (actId ? findIn(d.activities, actId) : d);
+  const subOk = (actId, sub) => SUBS.includes(sub) && (actId || TOP_SUBS.includes(sub));
   const areaOf = (d, id) => findIn(d.areas, id);
   const areaOfMs = (d, msId) => d.areas.find((a) => a.milestones.some((m) => m.id === msId));
   const msValid = (d, msId, areaId) => !msId || msId === LAUNCH || areaOfMs(d, msId)?.id === areaId;
@@ -560,59 +569,66 @@
 
     // ---------- dentro un'attività ----------
     addSub(actId, sub, fields) {
-      if (!SUBS.includes(sub) || sub === "files") return null;
-      const item = { ...fields, id: newId({ tasks: "t", open: "o", decisions: "d" }[sub]) };
+      if (!subOk(actId, sub) || sub === "files") return null;
+      const item = { ...fields, id: newId({ log: "l", tasks: "t", open: "o", decisions: "d" }[sub]) };
       if (typeof item.text === "string") item.text = item.text.trim();
       if (!item.text) return null;
+      if (sub === "log") Object.assign(item, { date: item.date || today(), detail: (item.detail || "").trim(), files: item.files || [], source: item.source || "dashboard", created: Date.now() });
       if (sub === "tasks") Object.assign(item, { priority: item.priority || "media", due: item.due || "", milestone: item.milestone || "", done: false, created: Date.now() });
       if (sub === "open") item.done = false;
       if (sub === "decisions") item.date = item.date || today();
-      apply({ tasks: "nuovo task", open: "nuovo punto da decidere", decisions: "nuova decisione" }[sub], (d) => {
-        const a = findIn(d.activities, actId);
+      apply({ log: "diario aggiornato", tasks: "nuovo task", open: "nuovo punto da decidere", decisions: "nuova decisione" }[sub], (d) => {
+        const a = box(d, actId);
         if (a && !findIn(a[sub], item.id)) a[sub].push(clone(item));
       });
       return item.id;
     },
     editSub(actId, sub, itemId, patch) {
-      if (!SUBS.includes(sub)) return;
+      if (!subOk(actId, sub)) return;
       const p = { ...patch };
       if (typeof p.text === "string") { p.text = p.text.trim(); if (!p.text) delete p.text; }
       const label = "done" in p ? (p.done ? `spuntato in ${sub}` : `riaperto in ${sub}`) : `modificato in ${sub}`;
       apply(label, (d) => {
-        const x = findIn(findIn(d.activities, actId)?.[sub], itemId);
+        const x = findIn(box(d, actId)?.[sub], itemId);
         if (x) Object.assign(x, p);
       });
     },
     removeSub(actId, sub, itemId) {
-      const a = data && findIn(data.activities, actId);
+      if (!subOk(actId, sub)) return () => {};
+      const a = data && box(data, actId);
       const idx = a ? a[sub].findIndex((x) => x.id === itemId) : -1;
       if (idx < 0) return () => {};
       const saved = clone(a[sub][idx]);
+      const linkedFrom = sub === "files" ? a.log.filter((e) => e.files?.includes(itemId)).map((e) => e.id) : [];
       apply(`eliminato da ${sub}`, (d) => {
-        const x = findIn(d.activities, actId);
-        if (x) x[sub] = x[sub].filter((y) => y.id !== itemId);
+        const x = box(d, actId);
+        if (!x) return;
+        x[sub] = x[sub].filter((y) => y.id !== itemId);
+        // un file tolto sparisce anche dalle voci del diario che lo allegavano
+        if (sub === "files") x.log.forEach((e) => { if (e.files?.includes(itemId)) e.files = e.files.filter((f) => f !== itemId); });
       });
       if (sub === "files") scheduleDelete(saved.path);
       return () => {
         if (sub === "files" && saved.path) pendingDeletes.delete(saved.path);
         apply(`ripristinato in ${sub}`, (d) => {
-          const x = findIn(d.activities, actId);
+          const x = box(d, actId);
           if (x && !findIn(x[sub], itemId)) x[sub].splice(Math.min(idx, x[sub].length), 0, clone(saved));
+          if (x && sub === "files") linkedFrom.forEach((eid) => { const e = findIn(x.log, eid); if (e && !e.files.includes(itemId)) e.files.push(itemId); });
         });
       };
     },
 
     async uploadFiles(actId, fileList) {
       const files = [...fileList];
-      const errors = [];
+      const errors = [], ids = [];
       uploading += files.length;
       emit();
       for (const f of files) {
-        try { await uploadOne(actId, f); }
+        try { ids.push(await uploadOne(actId, f)); }
         catch (e) { errors.push(e.message); }
         finally { uploading--; emit(); }
       }
-      return { ok: files.length - errors.length, errors };
+      return { ok: ids.length, errors, ids };
     },
   };
 

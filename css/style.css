@@ -750,3 +750,164 @@ button.ctx:hover { background: var(--fill-2); }
 /* avviso sotto il caricamento dei file */
 .upload-note { margin: 10px 2px 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
 .upload-note b { color: var(--text); font-weight: 600; }
+
+/* ---------- diario ---------- */
+.h-icon.green { background: var(--green); color: #fff; }
+#side-tab { margin-bottom: 10px; }
+
+/* annotazione veloce (barra laterale) e composer (pagina attività) */
+.quick-log, .log-form {
+  display: flex; flex-direction: column; gap: 8px; margin: 8px 0 6px; padding: 10px;
+  border-radius: 14px; background: var(--fill);
+}
+.quick-log:focus-within, .log-form:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+.quick-log textarea, .log-form textarea {
+  width: 100%; border: 0; background: transparent; resize: none; outline: none;
+  font-size: 16px; line-height: 1.4; padding: 2px 4px;
+}
+.quick-log textarea:focus-visible, .log-form textarea:focus-visible { box-shadow: none; outline: none; }
+.log-form .log-detail-input { border-top: .5px solid var(--line); padding-top: 8px; font-size: 15px; resize: vertical; }
+.quick-log textarea::placeholder, .log-form textarea::placeholder { color: var(--faint); }
+.quick-opts, .log-opts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.quick-opts .select-input { flex: 1 1 140px; min-width: 0; }
+.quick-opts .add-btn, .log-opts .add-btn { margin-left: auto; }
+.add-btn:disabled { opacity: .5; pointer-events: none; }
+.chip-btn {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 11px; border-radius: 10px;
+  background: var(--card); color: var(--accent); font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.chip-btn:hover, .chip-btn.on { background: var(--accent-soft); }
+.chip-btn svg { font-size: 14px; }
+.pending-files { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pending-files:empty { display: none; }
+.pending-files .att { background: var(--card); padding-right: 2px; }
+.pending-files small { color: var(--muted); font-size: 11px; }
+.unpend { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: var(--muted); }
+.unpend:hover { color: var(--red); background: var(--fill); }
+
+/* elenco delle voci, raggruppate per giorno, con una linea del tempo a sinistra */
+.feed, .log-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.log-day {
+  position: relative; padding: 14px 0 4px; font-size: 12px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.log-day:first-child { padding-top: 6px; }
+.log-entry { position: relative; display: flex; gap: 12px; padding: 6px 0 8px; }
+.log-entry::before {   /* linea del tempo */
+  content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--fill-2); border-radius: 1px;
+}
+.log-day + .log-entry::before { top: 12px; }
+.log-entry:has(+ .log-day)::before, .log-entry:last-child::before { bottom: calc(100% - 14px); }
+.log-dot { position: relative; z-index: 1; flex: none; width: 10px; height: 10px; margin-top: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px var(--card); }
+.log-body { flex: 1; min-width: 0; }
+.log-top { display: flex; align-items: flex-start; gap: 4px; }
+.log-text { flex: 1; min-width: 0; font-size: 15px; line-height: 1.4; font-weight: 500; cursor: pointer; overflow-wrap: anywhere; border-radius: 6px; padding-top: 1px; }
+.log-top .del { height: 30px; margin-top: -4px; }
+.log-entry:hover .del { opacity: 1; }
+.log-detail { margin: 3px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-detail.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+.log-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.log-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 6px; }
+.src {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; background: var(--indigo-soft); color: var(--indigo);
+}
+.src svg { font-size: 11px; }
+.att {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 28px; padding: 0 9px; border-radius: 8px;
+  background: var(--fill); color: var(--text); font-size: 12px; font-weight: 500; text-decoration: none;
+}
+.att span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att svg { color: var(--muted); font-size: 13px; }
+a.att:hover { background: var(--fill-2); }
+.att-img { flex-direction: column; align-items: stretch; gap: 0; padding: 0; width: 120px; overflow: hidden; }
+.att-img img { width: 120px; height: 80px; object-fit: cover; display: block; }
+.att-img span { padding: 4px 8px 5px; font-size: 11px; }
+.feed-empty { line-height: 1.45; font-size: 14px; }
+.act-when { font-weight: 600; color: var(--green-text); margin-right: 2px; }
+#sheet-detail { min-height: 110px; font-size: 15px; }
+/* "Da fare" è secondario: le opzioni del task compaiono solo quando inizi a scriverlo */
+.col-side .add-task .add-opts { display: none; }
+.col-side .add-task:focus-within .add-opts,
+.col-side .add-task:has(input[name=text]:not(:placeholder-shown)) .add-opts { display: flex; }
+.col-side .add-task { padding-bottom: 4px; }
+
+/* ---------- cuore della scrivania: diario del progetto + da decidere / da fare / idee ---------- */
+.hub {
+  display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: 16px; align-items: start;
+  margin: 4px 0 32px;
+}
+.hub > .card, .hub-side > .card { margin: 0; }
+.hub-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.areas { margin-bottom: 8px; }
+.card-sub { margin: -6px 0 8px; font-size: 13px; color: var(--muted); }
+.h-icon.orange { background: var(--orange); color: #fff; }
+.board-btn { text-decoration: none; }
+.board-btn svg { font-size: 16px; }
+.small-seg { margin-bottom: 4px; }
+.small-seg button { min-height: 28px; font-size: 13px; }
+
+/* annotazione veloce con scelta "Fatto / Decisione" */
+.ql-kind { align-self: flex-start; background: var(--card); }
+.ql-kind .rseg-opt span { min-height: 30px; padding: 0 12px; font-size: 13px; }
+.ql-kind .rseg-opt input:checked + span { background: var(--fill); box-shadow: none; }
+@media (prefers-color-scheme: dark) { .ql-kind .rseg-opt input:checked + span { background: var(--fill-2); } }
+.journal #prio-filter { margin: 4px 0 0; }
+.journal .feed { margin-top: 6px; }
+
+/* giorno: data + riepilogo */
+.log-day { display: flex; align-items: baseline; gap: 8px; }
+.log-day small { font-size: 12px; font-weight: 500; color: var(--faint); text-transform: none; letter-spacing: 0; }
+
+/* decisioni nel diario: puntino viola e etichetta "Deciso" */
+.log-entry.dec .log-dot { background: var(--commercial); }
+.dec-tag {
+  display: inline-block; margin-right: 4px; padding: 1px 6px; border-radius: 5px; vertical-align: 1px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+  background: var(--commercial-soft); color: var(--commercial);
+}
+
+/* da decidere in evidenza */
+.decide-card { box-shadow: var(--shadow), inset 0 0 0 1.5px var(--orange-soft); }
+.decide-card .row-meta .ctx { font-size: 11px; height: 20px; }
+.hub-side .add-wrap .select-input { flex: 1 1 140px; max-width: 100%; }
+.hub-side .add-wrap input[name=text] { flex: 1 1 100%; }
+.hub-side .add-wrap { padding-bottom: 8px; }
+.hub-side .add-wrap .add-icon { align-self: center; }
+
+/* parcheggio idee, richiudibile */
+.ideas-card { padding: 0; }
+.ideas-card summary {
+  display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 16px 0 18px; cursor: pointer; list-style: none;
+}
+.ideas-card summary::-webkit-details-marker { display: none; }
+.ideas-card summary b { font-size: 17px; font-weight: 700; }
+.ideas-card .sum-chev { margin-left: auto; color: var(--faint); display: grid; transition: transform .2s; }
+.ideas-card[open] .sum-chev { transform: rotate(90deg); }
+.ideas-card > ul, .ideas-card > form { margin-left: 18px; margin-right: 18px; }
+.ideas-card > form { margin-bottom: 16px; }
+
+@media (max-width: 1100px) {
+  .hub { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .board-btn span { display: none; }
+  .board-btn { padding: 0 10px; }
+}
+/* aggiustamenti: niente sbordi su iPhone, moduli compatti */
+.hub > *, .hub-side > * { min-width: 0; }
+@media (max-width: 1100px) { .hub { grid-template-columns: minmax(0, 1fr); } }
+.journal .card-head { flex-wrap: wrap; row-gap: 2px; }
+.journal .card-head h2 { flex: 1 1 auto; }
+.quick-opts .date-input { flex: 0 1 auto; min-width: 0; }
+.hub-side .add-wrap input[name=text] { flex: 1 1 calc(100% - 40px); }
+.hub-side .add-wrap .select-input { display: none; flex: 1 1 140px; margin-left: 26px; }
+.hub-side .add-wrap:focus-within .select-input,
+.hub-side .add-wrap:has(input[name=text]:not(:placeholder-shown)) .select-input { display: block; }
+.hub-side .add-wrap { padding-bottom: 4px; }
+.hub-side .add-wrap:focus-within { padding-bottom: 8px; }
+/* pallino grigio per "In comune" nel filtro; icone colorate per Da fare e Parcheggio idee */
+.chip.common i { background: var(--faint); }
+.h-icon.indigo { background: var(--indigo); color: #fff; }
+.h-icon.yellow { background: #ffcc00; color: #fff; }
+@media (prefers-color-scheme: dark) { .h-icon.yellow { background: #ffd60a; color: #1c1c1e; } }

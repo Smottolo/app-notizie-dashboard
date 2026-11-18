@@ -20,6 +20,9 @@
   let shownNoteFor = null;       // per non sovrascrivere le note mentre si scrive
   let deskScroll = 0;
   let mobileArea = "app";
+  let feedExpanded = false;
+  let quickAct = "";             // ultima attività scelta nell'annotazione veloce ("" = In comune)
+  let pendingFiles = [];         // allegati scelti nel composer del diario, non ancora caricati
   let prioMode = "urgency";      // urgency | milestone
   let prioFilter = "all";
   let prioExpanded = false;
@@ -97,6 +100,9 @@
     folder: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>',
     up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
     down: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+    book: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5ZM8 7.5h8M8 11h5"/></svg>',
+    clip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5Z"/></svg>',
     grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 12h14M5 16h14"/></svg>',
     expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
     person: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
@@ -129,6 +135,7 @@
         </div>
         <div class="top-actions">
           <span class="sync" role="status" aria-live="polite"></span>
+          <a id="board" class="pill-btn small board-btn" target="_blank" rel="noopener" title="Apri la lavagna del progetto su claude.ai">${ICON.board}<span>Lavagna</span></a>
           <button class="icon-btn" data-action="settings" aria-label="Impostazioni">${ICON.gear}</button>
         </div>
       </header>
@@ -156,63 +163,81 @@
           <div id="roadmap" class="road-rows"></div>
         </section>
 
-        <div class="desk">
-          <aside class="card prio" aria-labelledby="h-prio">
+        <div class="hub">
+          <section class="card journal" aria-labelledby="h-journal">
             <div class="card-head">
-              <h2 id="h-prio"><span class="h-icon red">${ICON.flag}</span>Priorità</h2>
-              <span id="prio-count" class="count"></span>
+              <h2 id="h-journal"><span class="h-icon green">${ICON.book}</span>Diario del progetto</h2>
+              <span id="journal-count" class="count"></span>
             </div>
-            <div id="prio-mode" class="seg full" role="tablist" aria-label="Ordina"></div>
+            <form class="quick-log" id="quick-log" autocomplete="off">
+              <div class="rseg ql-kind">${radioSeg("kind", [["done", "Fatto", ICON.check], ["decision", "Decisione", ICON.gavel]], "done")}</div>
+              <textarea name="text" rows="2" placeholder="Cosa hai fatto?" aria-label="Testo" enterkeyhint="send"></textarea>
+              <div class="quick-opts">
+                <select name="act" id="ql-act" class="select-input act-select" aria-label="Attività"></select>
+                <input name="date" type="date" class="date-input" aria-label="Data">
+                <button class="add-btn show">Annota</button>
+              </div>
+            </form>
             <div id="prio-filter" class="chips" role="tablist" aria-label="Filtra per area"></div>
-            <ol id="prio-list" class="rows prio-list"></ol>
-            <button id="prio-more" class="more-btn" data-action="prio-more" hidden></button>
-            <p id="prio-hint" class="prio-hint"></p>
-          </aside>
+            <ol id="feed" class="feed"></ol>
+            <button id="feed-more" class="more-btn" data-action="feed-more" hidden></button>
+          </section>
 
-          <div class="areas">
-            <div class="mobile-switch"><div id="area-switch" class="seg full" role="tablist" aria-label="Area"></div></div>
-            ${AREAS.map((a) => `
-              <section class="area ${a.id}" id="area-${a.id}" aria-labelledby="h-${a.id}">
-                <div class="area-head">
-                  <span class="area-icon ${a.id}">${ICON[a.icon]}</span>
-                  <div class="area-title"><h2 id="h-${a.id}">${a.name}</h2><p id="area-sub-${a.id}"></p></div>
-                </div>
-                <p id="area-next-${a.id}" class="area-next"></p>
-                <div id="groups-${a.id}" class="groups"></div>
-                <div class="area-add">
-                  <button class="new-act" data-action="new-activity" data-value="${a.id}">${ICON.plus}<span>Attività</span></button>
-                  <button class="new-act" data-action="new-group" data-value="${a.id}">${ICON.folder}<span>Gruppo</span></button>
-                </div>
-              </section>`).join("")}
+          <div class="hub-side">
+            <section class="card decide-card" aria-labelledby="h-open">
+              <div class="card-head">
+                <h2 id="h-open"><span class="h-icon orange">${ICON.question}</span>Da decidere</h2>
+                <span id="open-count" class="count"></span>
+              </div>
+              <p class="card-sub">I punti aperti che bloccano l'avanzamento, generali e delle attività.</p>
+              <ul id="open-list" class="rows"></ul>
+              <form class="add add-wrap" data-kind="hub-open" autocomplete="off">
+                <span class="add-icon">${ICON.plus}</span>
+                <input name="text" placeholder="Nuovo punto da decidere" enterkeyhint="done" aria-label="Nuovo punto da decidere">
+                <select name="act" class="select-input act-select" aria-label="Attività"></select>
+                <button class="add-btn">Aggiungi</button>
+              </form>
+            </section>
+
+            <section class="card todo-card" aria-labelledby="h-todo">
+              <div class="card-head">
+                <h2 id="h-todo"><span class="h-icon indigo">${ICON.check}</span>Da fare</h2>
+                <span id="todo-count" class="count"></span>
+              </div>
+              <div id="prio-mode" class="seg full small-seg" role="tablist" aria-label="Ordina"></div>
+              <ol id="prio-list" class="rows prio-list"></ol>
+              <button id="prio-more" class="more-btn" data-action="prio-more" hidden></button>
+              <form class="add add-wrap" data-kind="hub-task" autocomplete="off">
+                <span class="add-icon">${ICON.plus}</span>
+                <input name="text" placeholder="Qualcosa da fare" enterkeyhint="done" aria-label="Nuovo task">
+                <select name="act" class="select-input act-select" aria-label="Attività"></select>
+                <button class="add-btn">Aggiungi</button>
+              </form>
+            </section>
+
+            <details class="card ideas-card" id="ideas-box">
+              <summary><span class="h-icon yellow">${ICON.spark}</span><b>Parcheggio idee</b><span id="count-ideas" class="count"></span><span class="sum-chev">${ICON.chevron}</span></summary>
+              <ul id="list-ideas" class="rows"></ul>
+              ${addForm({ kind: "real", list: "ideas", placeholder: "Nuova idea" })}
+            </details>
           </div>
         </div>
 
-        <h2 class="zone-title">In comune</h2>
-        <div class="lists">
-          ${LISTS.map((l) => `
-            <section class="card list-card" aria-labelledby="h-${l.key}">
-              <div class="card-head"><h3 id="h-${l.key}">${l.title} <span id="count-${l.key}" class="count"></span></h3></div>
-              <ul id="list-${l.key}" class="rows"></ul>
-              ${addForm({ kind: "real", list: l.key, placeholder: l.placeholder })}
+        <div class="areas">
+          <div class="mobile-switch"><div id="area-switch" class="seg full" role="tablist" aria-label="Area"></div></div>
+          ${AREAS.map((a) => `
+            <section class="area ${a.id}" id="area-${a.id}" aria-labelledby="h-${a.id}">
+              <div class="area-head">
+                <span class="area-icon ${a.id}">${ICON[a.icon]}</span>
+                <div class="area-title"><h2 id="h-${a.id}">${a.name}</h2><p id="area-sub-${a.id}"></p></div>
+              </div>
+              <p id="area-next-${a.id}" class="area-next"></p>
+              <div id="groups-${a.id}" class="groups"></div>
+              <div class="area-add">
+                <button class="new-act" data-action="new-activity" data-value="${a.id}">${ICON.plus}<span>Attività</span></button>
+                <button class="new-act" data-action="new-group" data-value="${a.id}">${ICON.folder}<span>Gruppo</span></button>
+              </div>
             </section>`).join("")}
-        </div>
-        <div class="common-bottom">
-          <section class="card" aria-labelledby="h-dec">
-            <div class="card-head"><h3 id="h-dec">Registro decisioni <span id="count-decisions" class="count"></span></h3></div>
-            <ul id="decisions" class="rows decisions"></ul>
-            ${addForm({ kind: "decision", placeholder: "Nuova decisione", date: true })}
-          </section>
-          <section class="card board-card" aria-labelledby="h-board">
-            <div class="card-head">
-              <h3 id="h-board">Lavagna</h3>
-              <a id="board" class="link-btn" target="_blank" rel="noopener">Apri su claude.ai${ICON.arrow}</a>
-            </div>
-            <button class="board-preview" data-action="open-board" aria-label="Ingrandisci l'anteprima della lavagna">
-              <img src="img/lavagna.jpg?v=1" alt="Anteprima della lavagna del progetto" loading="lazy">
-              <span class="board-zoom">${ICON.expand}</span>
-            </button>
-            <p class="board-note">Anteprima statica della lavagna. La versione aggiornata è su claude.ai.</p>
-          </section>
         </div>
       </div>
 
@@ -238,21 +263,20 @@
         </div>
 
         <div class="act-grid">
-          <section class="card col-tasks" aria-labelledby="h-ptasks">
-            <div class="card-head"><h2 id="h-ptasks"><span class="h-icon">${ICON.check}</span>Task</h2><span id="p-count-tasks" class="count"></span></div>
-            <ul id="p-tasks" class="rows"></ul>
-            <form class="add add-task" data-kind="dtask" autocomplete="off">
-              <div class="add-line">
-                <span class="add-icon">${ICON.plus}</span>
-                <input name="text" placeholder="Nuovo task" enterkeyhint="done" aria-label="Nuovo task">
-              </div>
-              <div class="add-opts">
-                ${priPick("priority")}
-                <label class="opt-field"><span>Scadenza</span><input name="due" type="date" class="date-input"></label>
-                <label class="opt-field"><span>Traguardo</span><select name="milestone" id="p-task-ms" class="select-input"></select></label>
-                <button class="add-btn show">Aggiungi</button>
+          <section class="card col-tasks col-log" aria-labelledby="h-plog">
+            <div class="card-head"><h2 id="h-plog"><span class="h-icon green">${ICON.book}</span>Diario</h2><span id="p-count-log" class="count"></span></div>
+            <form class="log-form" id="log-form" autocomplete="off">
+              <textarea name="text" rows="2" placeholder="Cosa hai fatto?" aria-label="Cosa hai fatto?"></textarea>
+              <textarea name="detail" rows="3" placeholder="Dettagli, link, cosa resta in sospeso… (facoltativo)" aria-label="Dettagli" class="log-detail-input" hidden></textarea>
+              <ul id="log-pending" class="pending-files"></ul>
+              <div class="log-opts">
+                <button type="button" class="chip-btn" data-action="log-detail" id="log-detail-btn">${ICON.plus}Dettagli</button>
+                <label class="chip-btn">${ICON.clip}Allega<input type="file" id="log-files" multiple hidden></label>
+                <input name="date" type="date" class="date-input" aria-label="Data">
+                <button class="add-btn show" id="log-submit">Annota</button>
               </div>
             </form>
+            <ol id="p-log" class="log-list"></ol>
           </section>
 
           <section class="card col-files" aria-labelledby="h-pfiles">
@@ -277,6 +301,22 @@
               <ul id="p-open" class="rows"></ul>
               ${addForm({ kind: "dopen", placeholder: "Nuovo punto da decidere" })}
             </section>
+            <section class="card" aria-labelledby="h-ptasks">
+              <div class="card-head"><h2 id="h-ptasks"><span class="h-icon indigo">${ICON.check}</span>Da fare</h2><span id="p-count-tasks" class="count"></span></div>
+              <ul id="p-tasks" class="rows"></ul>
+              <form class="add add-task" data-kind="dtask" autocomplete="off">
+                <div class="add-line">
+                  <span class="add-icon">${ICON.plus}</span>
+                  <input name="text" placeholder="Qualcosa da fare" enterkeyhint="done" aria-label="Nuovo task">
+                </div>
+                <div class="add-opts">
+                  ${priPick("priority")}
+                  <label class="opt-field"><span>Scadenza</span><input name="due" type="date" class="date-input"></label>
+                  <label class="opt-field"><span>Traguardo</span><select name="milestone" id="p-task-ms" class="select-input"></select></label>
+                  <button class="add-btn show">Aggiungi</button>
+                </div>
+              </form>
+            </section>
             <section class="card" aria-labelledby="h-pnote">
               <div class="card-head"><h2 id="h-pnote"><span class="h-icon">${ICON.note}</span>Note</h2></div>
               <textarea id="p-note" class="note" rows="6" placeholder="Appunti, link, idee su questa attività…" aria-labelledby="h-pnote"></textarea>
@@ -297,6 +337,7 @@
             <button type="submit" value="save" class="text-btn strong">Fine</button>
           </div>
           <textarea id="sheet-text" rows="3" aria-label="Testo"></textarea>
+          <textarea id="sheet-detail" rows="5" aria-label="Dettagli" placeholder="Dettagli (facoltativi)" hidden></textarea>
           <div class="form-group">
             <div id="sheet-pri-wrap" class="f-row"><span>Priorità</span>${priPick("sheet-pri")}</div>
             <label id="sheet-ms-wrap" class="f-row"><span>Traguardo</span><select id="sheet-ms" class="select-input"></select></label>
@@ -362,16 +403,6 @@
         </form>
       </dialog>
 
-      <!-- visore della lavagna -->
-      <dialog id="board-view" class="viewer" aria-label="Lavagna del progetto">
-        <div class="viewer-bar">
-          <button class="icon-btn round" data-action="close-board" aria-label="Chiudi">${ICON.x}</button>
-          <b>Lavagna</b>
-          <a id="board-open" class="pill-btn small" target="_blank" rel="noopener">Apri su claude.ai${ICON.arrow}</a>
-        </div>
-        <div class="viewer-body"><img src="img/lavagna.jpg?v=1" alt="Lavagna del progetto"></div>
-      </dialog>
-
       <dialog id="settings" class="sheet" aria-labelledby="settings-title">
         <form method="dialog">
           <div class="sheet-head">
@@ -428,6 +459,23 @@
     // note: si salvano poco dopo che smetti di scrivere, quando esci dal campo o cambi pagina
     $("#p-note").addEventListener("input", () => { clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 800); });
     $("#p-note").addEventListener("blur", flushNote);
+    // diario: annotazione veloce (barra laterale) e composer della pagina attività
+    $("#quick-log").addEventListener("submit", (e) => { e.preventDefault(); submitQuickLog(); });
+    $("#ql-act").addEventListener("change", (e) => { quickAct = e.target.value; });
+    $("#quick-log").addEventListener("change", (e) => {
+      if (e.target.name === "kind") $("#quick-log").text.placeholder = e.target.value === "decision" ? "Cosa avete deciso?" : "Cosa hai fatto?";
+    });
+    $("#log-form").addEventListener("submit", (e) => { e.preventDefault(); submitLog(); });
+    for (const ta of [$("#quick-log").text, $("#log-form").text]) {
+      ta.addEventListener("keydown", (e) => {   // Invio = annota, Maiusc+Invio = a capo
+        if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ta.form.requestSubmit(); }
+      });
+    }
+    $("#log-files").addEventListener("change", (e) => {
+      pendingFiles.push(...e.target.files);
+      e.target.value = "";
+      renderPending();
+    });
     window.addEventListener("hashchange", route);
 
     route();
@@ -460,7 +508,7 @@
     if (id && Model.activity(id)) {
       if (wasDesk) deskScroll = window.scrollY;
       view = "activity";
-      if (current !== id) { current = id; shownNoteFor = null; }
+      if (current !== id) { current = id; shownNoteFor = null; pendingFiles = []; renderPending(); }
       render(lastData, lastStatus);
       window.scrollTo(0, 0);
     } else {
@@ -488,8 +536,17 @@
       case "owner": if (current) Model.setOwner(current, value); break;
       case "milestone": Model.clickMilestone(id); break;
       case "area": mobileArea = value; renderAreas(); break;
+      case "feed-more": feedExpanded = !feedExpanded; renderJournal(lastData); break;
+      case "log-detail": {
+        const ta = $("#log-form").detail;
+        ta.hidden = !ta.hidden;
+        $("#log-detail-btn").classList.toggle("on", !ta.hidden);
+        if (!ta.hidden) ta.focus();
+        break;
+      }
+      case "unpend": pendingFiles.splice(Number(t.dataset.i), 1); renderPending(); break;
       case "prio-mode": prioMode = value; prioExpanded = false; renderPriorities(lastData); break;
-      case "prio-filter": prioFilter = value; prioExpanded = false; renderPriorities(lastData); break;
+      case "prio-filter": prioFilter = value; feedExpanded = false; renderJournal(lastData); break;
       case "prio-more": prioExpanded = !prioExpanded; renderPriorities(lastData); break;
       case "new-activity": openActSheet(null, value, t.dataset.group || ""); break;
       case "new-group": openGroupSheet(null, value); break;
@@ -516,8 +573,6 @@
         if (j >= 0 && j < list.length) { [list[i], list[j]] = [list[j], list[i]]; renderMsSheet(); }
         break;
       }
-      case "open-board": $("#board-view").showModal(); break;
-      case "close-board": $("#board-view").close(); break;
       case "edit-activity": if (current) openActSheet(current); break;
       case "delete-activity": if (current) deleteActivity(current); break;
       case "act-delete": {
@@ -569,6 +624,8 @@
         break;
       case "ddec": if (current) Model.addDecision(current, text, f.date.value); f.date.value = ""; break;
       case "dopen": if (current) Model.addOpen(current, text); break;
+      case "hub-open": if (f.act.value) Model.addOpen(f.act.value, text); else store.addItem("open", text); break;
+      case "hub-task": if (f.act.value) Model.addTask(f.act.value, { text }); else store.addItem("tasks", text); break;
     }
     f.text.value = "";
     f.text.focus();
@@ -588,6 +645,7 @@
     else if (kind === "dopen") undo = Model.removeOpen(a, id);
     else if (kind === "ddec") { undo = Model.removeDecision(a, id); msg = "Decisione eliminata"; }
     else if (kind === "dfile") { undo = Model.removeFile(a, id); msg = "File rimosso"; }
+    else if (kind === "dlog") { undo = Model.removeLog(a, id); msg = "Voce del diario eliminata"; }
     if (undo) showUndo(msg, undo);
   }
 
@@ -718,16 +776,219 @@
   const sortDecisions = (arr) => arr.map((d, i) => ({ d, i }))
     .sort((a, b) => String(b.d.date).localeCompare(String(a.d.date)) || b.i - a.i).map((x) => x.d);
 
+  // ---------- diario ----------
+  function relDay(iso) {
+    const n = daysFromToday(iso);
+    if (n === 0) return "Oggi";
+    if (n === -1) return "Ieri";
+    const d = parseISO(iso);
+    if (!d) return esc(iso);
+    if (n > -7 && n < 0) return d.toLocaleDateString("it-IT", { weekday: "long" }).replace(/^./, (c) => c.toUpperCase());
+    return d.toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) });
+  }
+  /** allegati di una voce: i file a cui punta, cercati tra quelli della sua attività (o "In comune") */
+  function entryFiles(e) {
+    const all = Model.filesOf(e.a ?? current ?? "");
+    return (e.files || []).map((id) => all.find((f) => f.id === id)).filter(Boolean);
+  }
+  function fileChip(f, big = false) {
+    const url = Model.fileUrl(f);
+    const img = f.type?.startsWith("image/");
+    const inner = big && img && url
+      ? `<img src="${esc(url)}" alt="" loading="lazy"><span>${esc(f.name)}</span>`
+      : `${img ? ICON.image : ICON.file}<span>${esc(f.name)}</span>`;
+    return url ? `<a class="att ${big && img && url ? "att-img" : ""}" href="${esc(url)}" target="_blank" rel="noopener">${inner}</a>` : `<span class="att">${inner}</span>`;
+  }
+  /** una voce del diario; context = mostra a quale attività appartiene (nella barra laterale) */
+  function logEntry(e, { context = false } = {}) {
+    const a = e.a ?? current ?? "";
+    const attrs = `data-kind="dlog" data-a="${esc(a)}" data-id="${esc(e.id)}"`;
+    const files = entryFiles({ ...e, a });
+    const where = context && e.act
+      ? `<button class="ctx ${e.act.area}" data-action="open-activity" data-id="${esc(e.act.id)}"><i></i>${esc(e.act.name)}</button>`
+      : "";
+    return `<li class="log-entry">
+      <span class="log-dot"></span>
+      <div class="log-body">
+        <div class="log-top">
+          <span class="log-text" tabindex="0" role="button" data-action="edit" ${attrs}>${esc(e.text)}</span>
+          <button class="del" data-action="delete" ${attrs} aria-label="Elimina voce">${ICON.x}</button>
+        </div>
+        ${e.detail ? `<p class="log-detail ${context ? "clamp" : ""}">${esc(e.detail)}</p>` : ""}
+        ${files.length ? `<div class="log-files">${context ? `<span class="att">${ICON.clip}<span>${files.length} ${files.length === 1 ? "allegato" : "allegati"}</span></span>` : files.map((f) => fileChip(f, true)).join("")}</div>` : ""}
+        ${where || e.source === "chat" ? `<div class="log-meta">${where}${e.source === "chat" ? `<span class="src" title="Annotato da una chat di Claude">${ICON.chat}da chat</span>` : ""}</div>` : ""}
+      </div>
+    </li>`;
+  }
+  /** voci raggruppate per giorno */
+  function logGroups(entries, opts) {
+    let html = "", day = null;
+    for (const e of entries) {
+      if (e.date !== day) { day = e.date; html += `<li class="log-day"><span>${relDay(day)}</span></li>`; }
+      html += logEntry(e, opts);
+    }
+    return html;
+  }
+
+  /** voce "decisione" nel diario del progetto */
+  function decisionEntry(e) {
+    const kind = e.act ? "ddec" : "decision";
+    const attrs = `data-kind="${kind}" data-a="${esc(e.a)}" data-id="${esc(e.id)}"`;
+    const where = e.act
+      ? `<button class="ctx ${e.act.area}" data-action="open-activity" data-id="${esc(e.act.id)}"><i></i>${esc(e.act.name)}</button>`
+      : "";
+    return `<li class="log-entry dec">
+      <span class="log-dot"></span>
+      <div class="log-body">
+        <div class="log-top">
+          <span class="log-text" tabindex="0" role="button" data-action="edit" ${attrs}><b class="dec-tag">Deciso</b> ${esc(e.text)}</span>
+          <button class="del" data-action="delete" ${attrs} aria-label="Elimina decisione">${ICON.x}</button>
+        </div>
+        ${where ? `<div class="log-meta">${where}</div>` : ""}
+      </div>
+    </li>`;
+  }
+  /** tutto il diario del progetto: cose fatte e decisioni (generali e delle attività), dalla più recente */
+  function allJournal(data) {
+    const out = Model.allLog().map((e) => ({ ...e, type: "log" }));
+    for (const d of data.decisions) out.push({ ...d, type: "dec", act: null, a: "" });
+    for (const act of Model.activities()) for (const d of act.decisions || []) out.push({ ...d, type: "dec", act, a: act.id });
+    return out.sort((x, y) => String(y.date).localeCompare(String(x.date)) || (x.type === y.type ? (y.created || 0) - (x.created || 0) : x.type === "log" ? -1 : 1));
+  }
+
+  function renderJournal(data) {
+    $("#prio-filter").innerHTML = [["all", "Tutto"], ...AREAS.map((a) => [a.id, a.name]), ["common", "In comune"]].map(([k, l]) =>
+      `<button role="tab" aria-selected="${prioFilter === k}" class="chip ${k} ${prioFilter === k ? "on" : ""}" data-action="prio-filter" data-value="${k}">${k !== "all" ? "<i></i>" : ""}${l}</button>`).join("");
+    const all = allJournal(data);
+    const list = prioFilter === "all" ? all : prioFilter === "common" ? all.filter((e) => !e.act) : all.filter((e) => e.act?.area === prioFilter);
+    const week = all.filter((e) => daysFromToday(e.date) > -7);
+    const nDone = week.filter((e) => e.type === "log").length, nDec = week.length - nDone;
+    $("#journal-count").textContent = week.length ? `questa settimana: ${nDone} ${nDone === 1 ? "fatto" : "fatti"} · ${nDec} ${nDec === 1 ? "decisione" : "decisioni"}` : "";
+    // di base le ultime 3 giornate di lavoro, poi "Mostra tutto"
+    const days = [...new Set(list.map((e) => e.date))];
+    const shown = feedExpanded ? list : list.filter((e) => days.indexOf(e.date) < 3);
+    let html = "", day = null;
+    for (const e of shown) {
+      if (e.date !== day) {
+        day = e.date;
+        const ofDay = list.filter((x) => x.date === day);
+        const f = ofDay.filter((x) => x.type === "log").length, dd = ofDay.length - f;
+        const sum = [f ? `${f} ${f === 1 ? "fatto" : "fatti"}` : "", dd ? `${dd} ${dd === 1 ? "decisione" : "decisioni"}` : ""].filter(Boolean).join(" · ");
+        html += `<li class="log-day"><span>${relDay(day)}</span><small>${sum}</small></li>`;
+      }
+      html += e.type === "dec" ? decisionEntry(e) : logEntry(e, { context: true });
+    }
+    $("#feed").innerHTML = html || `<li class="empty feed-empty">${all.length ? "Niente in questa area." : "Ancora niente. Annota qui cosa hai fatto o deciso, oppure a fine sessione chiedi a Claude di aggiornare la dashboard."}</li>`;
+    const more = $("#feed-more");
+    more.hidden = shown.length >= list.length && !feedExpanded;
+    more.textContent = feedExpanded ? "Mostra solo le ultime giornate" : `Mostra tutto (${list.length})`;
+    const dateIn = $("#quick-log").date;
+    if (!dateIn.value) dateIn.value = todayISO();
+  }
+
+  /** <option> per scegliere dove va una cosa: In comune oppure un'attività */
+  function actOptions() {
+    return `<option value="">In comune</option>` + AREAS.map((a) => `<optgroup label="${esc(a.name)}">${
+      Model.blocks(a.id).flatMap((b) => b.group ? b.acts.map((x) => [x, b.group.name]) : [[b.act, ""]])
+        .map(([x, g]) => `<option value="${esc(x.id)}">${g ? esc(g) + " › " : ""}${esc(x.name)}</option>`).join("")
+    }</optgroup>`).join("");
+  }
+  function fillActSelects() {
+    const html = actOptions();
+    root.querySelectorAll(".act-select").forEach((sel) => {
+      if (document.activeElement === sel) return;   // non mentre lo stai usando
+      const keep = sel.id === "ql-act" ? quickAct : sel.value;
+      if (sel.dataset.html !== html) { sel.innerHTML = html; sel.dataset.html = html; }
+      sel.value = Model.activity(keep) ? keep : "";
+    });
+  }
+
+  function renderOpen(data) {
+    const items = [
+      ...data.open.filter((o) => !o.done).map((o) => ({ ...o, kind: "real", list: "open", a: "" })),
+      ...Model.activities().flatMap((act) => (act.open || []).filter((o) => !o.done).map((o) => ({ ...o, kind: "dopen", a: act.id, act }))),
+    ];
+    $("#open-count").textContent = items.length ? String(items.length) : "";
+    $("#open-list").innerHTML = items.length ? items.map((o) => {
+      const attrs = `data-kind="${o.kind}" data-list="${o.list || ""}" data-a="${esc(o.a)}" data-id="${esc(o.id)}"`;
+      const where = o.act
+        ? `<button class="ctx ${o.act.area}" data-action="open-activity" data-id="${esc(o.act.id)}"><i></i>${esc(o.act.name)}</button>`
+        : `<span class="ctx common"><i></i>In comune</span>`;
+      return `<li class="row">
+        <button class="check" role="checkbox" aria-checked="false" data-action="toggle" ${attrs} aria-label="Segna come deciso"><span>${ICON.check}</span></button>
+        <div class="row-main">
+          <span class="row-text" tabindex="0" role="button" data-action="edit" ${attrs}>${esc(o.text)}</span>
+          <span class="row-meta">${where}</span>
+        </div>
+        <button class="del" data-action="delete" ${attrs} aria-label="Elimina">${ICON.x}</button>
+      </li>`;
+    }).join("") : `<li class="empty">Nessun punto aperto. Niente blocca l'avanzamento.</li>`;
+  }
+
+  function renderIdeas(data) {
+    const items = data.ideas;
+    $("#count-ideas").textContent = items.length ? String(items.filter((x) => !x.done).length) : "";
+    $("#list-ideas").innerHTML = items.length ? items.map((it) => simpleRow(it, { kind: "real", list: "ideas" })).join("") : `<li class="empty">Ancora nessuna idea.</li>`;
+  }
+
+  function submitQuickLog() {
+    const f = $("#quick-log");
+    const text = f.text.value.trim();
+    if (!text) { f.text.focus(); return; }
+    quickAct = f.act.value;
+    const date = f.date.value || todayISO();
+    const isDec = f.querySelector("input[name=kind]:checked")?.value === "decision";
+    if (isDec) { if (quickAct) Model.addDecision(quickAct, text, date); else store.addDecision(text, date); }
+    else Model.addLog(quickAct, { text, date });
+    f.text.value = "";
+    f.date.value = todayISO();
+    const where = quickAct ? ` in «${Model.activity(quickAct)?.name}»` : "";
+    showToast(isDec ? `Decisione annotata${where}` : `Annotato${where}`);
+  }
+
+  function renderPending() {
+    $("#log-pending").innerHTML = pendingFiles.map((f, i) =>
+      `<li class="att">${f.type?.startsWith("image/") ? ICON.image : ICON.file}<span>${esc(f.name)}</span><small>${fmtSize(f.size)}</small>
+        <button type="button" class="unpend" data-action="unpend" data-i="${i}" aria-label="Togli ${esc(f.name)}">${ICON.x}</button></li>`).join("");
+  }
+
+  async function submitLog() {
+    const f = $("#log-form");
+    const actId = current;
+    const text = f.text.value.trim();
+    if (!actId || !text) { f.text.focus(); return; }
+    const btn = $("#log-submit");
+    btn.disabled = true;
+    let ids = [];
+    if (pendingFiles.length) {
+      btn.textContent = "Carico…";
+      const res = await Model.addFiles(actId, pendingFiles);
+      ids = res.ids;
+      if (res.errors.length) showToast(res.errors[0]);
+    }
+    Model.addLog(actId, { text, detail: f.detail.value, date: f.date.value || todayISO(), files: ids });
+    f.text.value = "";
+    f.detail.value = "";
+    f.detail.hidden = true;
+    $("#log-detail-btn").classList.remove("on");
+    f.date.value = todayISO();
+    pendingFiles = [];
+    renderPending();
+    btn.disabled = false;
+    btn.textContent = "Annota";
+    showToast("Annotato nel diario");
+    f.text.focus();
+  }
+
   function renderPriorities(data) {
     if (!data) return;
     const all = allOpenTasks(data);
+    const tips = { urgency: "Scadute, priorità alta, in scadenza o per il prossimo traguardo, poi il resto", milestone: "Raggruppate per traguardo, dentro ogni gruppo per urgenza" };
     $("#prio-mode").innerHTML = [["urgency", "Per urgenza"], ["milestone", "Per traguardo"]].map(([k, l]) =>
-      `<button role="tab" aria-selected="${prioMode === k}" class="${prioMode === k ? "on" : ""}" data-action="prio-mode" data-value="${k}">${l}</button>`).join("");
-    $("#prio-filter").innerHTML = [["all", "Tutte"], ...AREAS.map((a) => [a.id, a.name])].map(([k, l]) =>
-      `<button role="tab" aria-selected="${prioFilter === k}" class="chip ${k} ${prioFilter === k ? "on" : ""}" data-action="prio-filter" data-value="${k}">${k !== "all" ? "<i></i>" : ""}${l}</button>`).join("");
-    const list = prioFilter === "all" ? all : all.filter((t) => t.area === prioFilter);
+      `<button role="tab" title="${tips[k]}" aria-selected="${prioMode === k}" class="${prioMode === k ? "on" : ""}" data-action="prio-mode" data-value="${k}">${l}</button>`).join("");
+    const list = all;
     const urgent = all.filter((t) => tierOf(t) <= 1).length;
-    $("#prio-count").textContent = urgent ? `${urgent} urgenti` : "";
+    $("#todo-count").textContent = all.length ? `${all.length}${urgent ? ` · ${urgent} urgenti` : ""}` : "";
     const LIMIT = 7;
     let html = "", shownCount = 0;
 
@@ -735,12 +996,10 @@
       const shown = prioExpanded ? list : list.slice(0, LIMIT);
       shownCount = shown.length;
       html = shown.map((t) => taskRow(t, { context: true })).join("");
-      $("#prio-hint").textContent = "Ordine: scadute, priorità alta, in scadenza o per il prossimo traguardo, poi il resto.";
     } else {
       // gruppi: traguardi di ogni area in ordine, poi Lancio, poi senza traguardo
       const groups = [];
       for (const a of AREAS) {
-        if (prioFilter !== "all" && prioFilter !== a.id) continue;
         for (const m of a.milestones) groups.push({ id: m.id, area: a, name: m.name });
       }
       groups.push({ id: LAUNCH.id, name: "Lancio" }, { id: "", name: "Senza traguardo" });
@@ -759,9 +1018,8 @@
         html += tasks.slice(0, room).map((t) => taskRow(t, { context: true, showMs: false })).join("");
         shownCount += Math.min(room, tasks.length);
       }
-      $("#prio-hint").textContent = "Raggruppate per traguardo; dentro ogni gruppo, in ordine di urgenza.";
     }
-    $("#prio-list").innerHTML = html || `<li class="empty">Niente da fare qui. Ottimo.</li>`;
+    $("#prio-list").innerHTML = html || `<li class="empty">Niente in sospeso. I task si aggiungono dalla pagina di ogni attività, se servono.</li>`;
     const more = $("#prio-more");
     more.hidden = list.length <= LIMIT;
     more.textContent = prioExpanded ? "Mostra meno" : `Mostra tutte (${list.length})`;
@@ -776,8 +1034,9 @@
     const urgent = open.some((t) => tierOf(t) <= 1);
     const openPts = d.open.filter((o) => !o.done).length;
     const until = act.until ? Model.milestone(act.until) : null;
+    const last = Model.lastLog(act.id);
     const tags = [ownerChip(act.owner)];
-    if (open.length) tags.push(`<span>${open.length} task</span>`);
+    if (open.length) tags.push(`<span>${open.length} da fare</span>`);
     if (d.files.length) tags.push(`<span>${d.files.length} file</span>`);
     if (openPts) tags.push(`<span>${openPts} da decidere</span>`);
     if (until) tags.push(`<span class="until" title="Si chiude con questo traguardo">${ICON.flag}${esc(until.name)}</span>`);
@@ -785,7 +1044,7 @@
     return `<button class="activity ${st}" data-action="open-activity" data-id="${esc(act.id)}">
       <span class="act-body">
         <span class="act-name">${esc(act.name)}${urgent ? '<i class="urgent-dot" title="Ha task urgenti"></i>' : ""}</span>
-        ${top || act.hint ? `<span class="act-meta">${top ? esc(top.text) : esc(act.hint)}</span>` : ""}
+        ${last ? `<span class="act-meta"><b class="act-when">${relDay(last.date)}</b> ${esc(last.text)}</span>` : act.hint ? `<span class="act-meta">${esc(act.hint)}</span>` : ""}
         <span class="act-tags">${tags.join("")}</span>
       </span>
       <span class="act-go">${ICON.chevron}</span>
@@ -799,8 +1058,9 @@
       $(`#area-${area.id}`).classList.toggle("mobile-hidden", mobileArea !== area.id);
       const acts = Model.activities().filter((x) => x.area === area.id);
       const nGroups = Model.groupsOf(area.id).length;
-      const openTasks = acts.reduce((n, x) => n + Model.get(x.id).tasks.filter((t) => !t.done).length, 0);
-      $(`#area-sub-${area.id}`).textContent = `${nGroups ? `${nGroups} ${nGroups === 1 ? "gruppo" : "gruppi"} · ` : ""}${acts.length} attività · ${openTasks} task aperti`;
+      const lastDates = acts.map((x) => Model.lastLog(x.id)?.date).filter(Boolean).sort();
+      const lastDay = lastDates[lastDates.length - 1];
+      $(`#area-sub-${area.id}`).textContent = `${nGroups ? `${nGroups} ${nGroups === 1 ? "gruppo" : "gruppi"} · ` : ""}${acts.length} attività${lastDay ? ` · ultima voce: ${relDay(lastDay).toLowerCase()}` : ""}`;
       const next = Model.nextMilestone(area.id);
       $(`#area-next-${area.id}`).innerHTML = next ? `${ICON.flag}<span>Prossimo traguardo:</span><b>${esc(next.name)}</b>` : `${ICON.check}<b>Lanciato</b>`;
       const blocks = Model.blocks(area.id);
@@ -852,11 +1112,19 @@
       ? `${ICON.flag}<span>Si chiude con <b>${esc(until.name)}</b>${Model.isReached(until.id) ? " · raggiunto" : ""}</span>`
       : `<span>Continua a evolvere anche dopo il lancio</span>`;
 
-    // task
+    // diario
+    const entries = Model.sortLog(d.log || []);
+    $("#p-count-log").textContent = entries.length ? `${entries.length} ${entries.length === 1 ? "voce" : "voci"}` : "";
+    $("#p-log").innerHTML = entries.length ? logGroups(entries)
+      : `<li class="empty">Qui finisce quello che fai su questa attività: una riga per volta, con dettagli e file se servono.</li>`;
+    const lf = $("#log-form");
+    if (!lf.date.value) lf.date.value = todayISO();
+
+    // da fare
     const tasks = sortByUrgency(d.tasks.map((t) => ({ ...t, a: act.id, area: act.area })));
     const openN = tasks.filter((t) => !t.done).length;
     $("#p-count-tasks").textContent = d.tasks.length ? `${openN} ${openN === 1 ? "aperto" : "aperti"}` : "";
-    $("#p-tasks").innerHTML = tasks.length ? tasks.map((t) => taskRow(t)).join("") : `<li class="empty">Nessun task: aggiungine uno qui sotto.</li>`;
+    $("#p-tasks").innerHTML = tasks.length ? tasks.map((t) => taskRow(t)).join("") : `<li class="empty">Niente in sospeso.</li>`;
     const msSel = $("#p-task-ms");
     if (document.activeElement !== msSel) {
       const keep = msSel.value;
@@ -896,17 +1164,6 @@
     if (shownNoteFor !== act.id) { note.value = d.note; shownNoteFor = act.id; }
   }
 
-  // ---------- in comune ----------
-  function renderList(data, l) {
-    const items = data[l.key];
-    $(`#count-${l.key}`).textContent = items.length ? String(items.filter((x) => !x.done).length) : "";
-    $(`#list-${l.key}`).innerHTML = items.length ? items.map((it) => simpleRow(it, { kind: "real", list: l.key })).join("") : `<li class="empty">${l.empty}</li>`;
-  }
-  function renderDecisions(data) {
-    $("#count-decisions").textContent = data.decisions.length || "";
-    $("#decisions").innerHTML = data.decisions.length ? sortDecisions(data.decisions).map((d) => decisionRow(d, "decision")).join("") : `<li class="empty">Nessuna decisione registrata.</li>`;
-  }
-
   // ---------- foglio: modifica elemento ----------
   function findItem({ kind, list, a, id }) {
     if (kind === "real") return lastData?.[list]?.find((x) => x.id === id);
@@ -914,6 +1171,7 @@
     if (kind === "dtask") return Model.get(a).tasks.find((x) => x.id === id);
     if (kind === "dopen") return Model.get(a).open.find((x) => x.id === id);
     if (kind === "ddec") return Model.get(a).decisions.find((x) => x.id === id);
+    if (kind === "dlog") return Model.logOf(a).find((x) => x.id === id);
     return null;
   }
 
@@ -921,10 +1179,12 @@
     const item = findItem(ref);
     if (!item) return;
     editing = ref;
-    const titles = { real: LISTS.find((l) => l.key === ref.list)?.title, decision: "Decisione", ddec: "Decisione", dtask: "Task", dopen: "Da decidere" };
+    const titles = { real: LISTS.find((l) => l.key === ref.list)?.title, decision: "Decisione", ddec: "Decisione", dtask: "Da fare", dopen: "Da decidere", dlog: "Voce del diario" };
     $("#sheet-title").textContent = titles[ref.kind] || "Modifica";
     $("#sheet-text").value = item.text;
-    const isTask = ref.kind === "dtask", isDec = ref.kind === "decision" || ref.kind === "ddec";
+    const isTask = ref.kind === "dtask", isLog = ref.kind === "dlog", isDec = ref.kind === "decision" || ref.kind === "ddec" || isLog;
+    $("#sheet-detail").hidden = !isLog;
+    $("#sheet-detail").value = isLog ? item.detail || "" : "";
     $("#sheet-pri-wrap").hidden = !isTask;
     $("#sheet-ms-wrap").hidden = !isTask;
     $("#sheet-date-wrap").hidden = !(isTask || isDec);
@@ -962,6 +1222,13 @@
         break;
       }
       case "dopen": Model.editOpen(ed.a, ed.id, { text }); break;
+      case "dlog": {
+        const patch = { detail: $("#sheet-detail").value.trim() };
+        if (text) patch.text = text;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) patch.date = date;
+        Model.editLog(ed.a, ed.id, patch);
+        break;
+      }
     }
   }
 
@@ -1231,19 +1498,20 @@
     if (isDesk) document.title = "App notizie · Dashboard";
     renderSync(status);
     renderBanner(status);
+    const board = $("#board");
+    board.hidden = !data?.boardUrl;
+    if (data?.boardUrl) board.href = data.boardUrl;
     root.classList.toggle("is-loading", !data);
     if (!data) return;
     if (pendingRoute) { pendingRoute = false; route(); return; }
     if (isDesk) {
       renderRoadmap();
+      renderJournal(data);
+      renderOpen(data);
       renderPriorities(data);
+      renderIdeas(data);
+      fillActSelects();
       renderAreas();
-      LISTS.forEach((l) => renderList(data, l));
-      renderDecisions(data);
-      for (const el of [$("#board"), $("#board-open")]) {
-        el.hidden = !data.boardUrl;
-        if (data.boardUrl) el.href = data.boardUrl;
-      }
     } else {
       renderActivity();
     }
