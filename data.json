@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T18:33:34.801Z",
+  "updatedAt": "2026-11-18T18:33:43.022Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -74,10 +74,10 @@
         }
       ],
       "order": [
+        "g:gmwmgm9995kh",
         "a:f1",
         "g:g-pro",
-        "a:f6",
-        "g:gmwmgm9995kh"
+        "a:f6"
       ]
     },
     {
