@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T21:52:47.000Z",
+  "updatedAt": "2026-11-18T23:35:31.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -512,7 +512,9 @@
           "date": "2026-11-16",
           "text": "Creato il file Argomenti con 116 argomenti in 13 aree",
           "detail": "Per ogni argomento: interesse, fonti, valore aggiunto, rischi e verdetto. Proposta iniziale: 56 dentro, 38 da valutare, 22 fuori. In fondo 6 domande aperte. https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz",
-          "files": [],
+          "files": [
+            "u20261119a"
+          ],
           "source": "chat",
           "created": 1795038767107
         },
@@ -521,7 +523,9 @@
           "date": "2026-11-18",
           "text": "Scritto il Sistema di grading argomenti v0.1",
           "detail": "11 criteri in 3 pilastri (Fattibilità, Rischio, Valore) con rubrica 1-5 a soglie misurabili; 6 criteri bloccanti; certezza dei voti (Misurato 1,0 / Verificato 0,8 / Stimato 0,5); punteggio P 0-100, certezza C, punteggio finale F = P × C; classi A-D, regole per i pareggi, test di robustezza su 3 profili di pesi; scheda argomento in JSON; procedura di calibrazione Andrea vs agente e regole per l'agente. Basato su RICE (Intercom), Admiralty Code (NATO) e valori-notizia (Harcup e O'Neill). Esempio di calcolo su Scioperi dei trasporti con voti non verificati. https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF",
-          "files": [],
+          "files": [
+            "u20261119b"
+          ],
           "source": "chat",
           "created": 1795038767107
         },
@@ -530,7 +534,9 @@
           "date": "2026-11-18",
           "text": "Aggiunti al grading il profilo Prototipo e il ciclo continuo",
           "detail": "Profilo Prototipo: filtro perle (V1 o V2 stimati 4-5 → messo da parte), 6 criteri con pesi F2 25, F3 20, R1 20, F6 15, F4 10, R2 10, valore per il lettore a peso zero, a parità vince l'argomento con meno valore. Ciclo continuo: stati degli argomenti (da valutare, perla, palestra, in app, rimandato, escluso), 3 vie per argomenti nuovi (Andrea, agente che segue le fonti ufficiali, divisione in sotto-argomenti), revisione ogni 6 mesi.",
-          "files": [],
+          "files": [
+            "u20261119b"
+          ],
           "source": "chat",
           "created": 1795038767107
         }
@@ -630,7 +636,24 @@
           "text": "Gli argomenti non si consumano: il file Argomenti è un serbatoio che cresce e a ogni ciclo si valutano solo i nuovi o quelli da rivedere"
         }
       ],
-      "files": []
+      "files": [
+        {
+          "id": "u20261119a",
+          "name": "Argomenti.pdf",
+          "size": 552546,
+          "type": "application/pdf",
+          "path": "uploads/f1/u20261119a-Argomenti.pdf",
+          "added": "2026-11-18T23:35:31.000Z"
+        },
+        {
+          "id": "u20261119b",
+          "name": "Sistema di grading argomenti v0.1.pdf",
+          "size": 385442,
+          "type": "application/pdf",
+          "path": "uploads/f1/u20261119b-Sistema-di-grading-argomenti-v0.1.pdf",
+          "added": "2026-11-18T23:35:31.000Z"
+        }
+      ]
     },
     {
       "id": "x20261118a",
