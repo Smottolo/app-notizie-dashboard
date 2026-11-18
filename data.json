@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T07:50:55.005Z",
+  "updatedAt": "2026-11-18T08:17:01.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -471,7 +471,13 @@
       "done": false
     }
   ],
-  "ideas": [],
+  "ideas": [
+    {
+      "id": "i20261118a",
+      "text": "Test dalla chat di Claude (da eliminare)",
+      "done": false
+    }
+  ],
   "decisions": [
     {
       "id": "d1",
