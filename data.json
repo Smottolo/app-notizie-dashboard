@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T08:19:03.420Z",
+  "updatedAt": "2026-11-18T18:29:36.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -10,12 +10,28 @@
       "progress": 0,
       "milestones": [
         {
+          "id": "m20261118a",
+          "name": "Identità definita"
+        },
+        {
           "id": "m-app-1",
           "name": "Design approvato"
         },
         {
           "id": "m-app-2",
           "name": "Prima versione sul telefono"
+        },
+        {
+          "id": "m20261118b",
+          "name": "Collegata alle notizie vere"
+        },
+        {
+          "id": "m20261118c",
+          "name": "Account e notifiche"
+        },
+        {
+          "id": "m20261118d",
+          "name": "Pronta per l'App Store"
         },
         {
           "id": "m-app-3",
