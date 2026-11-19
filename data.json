@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T21:36:27.000Z",
+  "updatedAt": "2026-11-19T21:38:59.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -57,36 +57,68 @@
           "name": "Argomenti palestra scelti"
         },
         {
-          "id": "m-con-1",
-          "name": "Regole editoriali e formati v1"
+          "id": "m20261119e",
+          "name": "Bussola v1: nuove domande, argomenti presi dalle fonti"
+        },
+        {
+          "id": "m20261119f",
+          "name": "Selezione notizie v1"
         },
         {
           "id": "m20261119b",
-          "name": "Lente v1 (valutazione delle fonti)"
+          "name": "Lente v1 e raccolta informazioni"
+        },
+        {
+          "id": "m20261119g",
+          "name": "Contesto e retroscena v1"
+        },
+        {
+          "id": "m20261119h",
+          "name": "Controllo di sufficienza ed etichette v1"
+        },
+        {
+          "id": "m20261119i",
+          "name": "Dossier v1"
+        },
+        {
+          "id": "m-con-1",
+          "name": "Scrittura e regole editoriali v1"
         },
         {
           "id": "m-con-2",
           "name": "Primo articolo"
         },
         {
+          "id": "m20261119j",
+          "name": "Revisione v1"
+        },
+        {
           "id": "m-con-3",
           "name": "Articoli palestra convincenti"
+        },
+        {
+          "id": "m20261119k",
+          "name": "Impaginazione v1"
+        },
+        {
+          "id": "m20261119l",
+          "name": "Pubblicazione v1: primo articolo nell'app di prova"
+        },
+        {
+          "id": "m-con-4",
+          "name": "Fabbrica automatica ogni giorno"
+        },
+        {
+          "id": "m20261119m",
+          "name": "Dopo la pubblicazione v1: correzioni e dati di lettura alla Bussola"
         },
         {
           "id": "m20261119c",
           "name": "Bussola collaudata"
         },
         {
-          "id": "m-con-4",
-          "name": "Motore automatico ogni giorno"
-        },
-        {
           "id": "m20261119d",
           "name": "Argomenti Fase 1 scelti"
-        },
-        {
-          "id": "m-con-5",
-          "name": "Pronto per il pubblico"
         }
       ],
       "order": [
