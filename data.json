@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T21:38:59.000Z",
+  "updatedAt": "2026-11-19T21:40:26.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -377,7 +377,7 @@
       "hint": "Serbatoio degli argomenti + grading; ora obiettivo Facili",
       "until": "",
       "status": "doing",
-      "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nBussola v0.1 (grading degli argomenti): https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo della Bussola in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).\nDomande per più avanti (sport, esteri, cronaca giudiziaria, Vaticano, fact-checking, partiti e sondaggi; pesi, testate di confronto, Google Trends, soglie, calibrazione, script): sono nelle sezioni Domande aperte dei due documenti, tolte da Da decidere il 19/11.",
+      "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nBussola v0.1 (grading degli argomenti): https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo della Bussola in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).\nDomande per più avanti (sport, esteri, cronaca giudiziaria, Vaticano, fact-checking, partiti e sondaggi; pesi, testate di confronto, Google Trends, soglie, calibrazione, script): sono nelle sezioni Domande aperte dei due documenti, tolte da Da decidere il 19/11.\nCopia di lavoro Bussola (dal 19/11, da qui si va alla v0.4): https://claude.ai/artifact/LVmzvEHGQZRiXECPreXGN3",
       "log": [
         {
           "id": "l20261116a",
@@ -420,6 +420,15 @@
           "files": [],
           "source": "chat",
           "created": 1795122888602
+        },
+        {
+          "id": "l20261119e",
+          "date": "2026-11-19",
+          "text": "Creata la copia di lavoro della Bussola v0.3 su cui lavorare in chat",
+          "detail": "Copia fedele della v0.3, da usare per riscrivere le domande e arrivare alla v0.4: https://claude.ai/artifact/LVmzvEHGQZRiXECPreXGN3",
+          "files": [],
+          "source": "chat",
+          "created": 1795124426925
         }
       ],
       "tasks": [
@@ -914,6 +923,15 @@
       "files": [],
       "source": "chat",
       "created": 1795038767107
+    },
+    {
+      "id": "l20261119f",
+      "date": "2026-11-19",
+      "text": "Rifatti i traguardi di Contenuti: uno per ogni stazione della Fabbrica",
+      "detail": "17 traguardi da \"Argomenti palestra scelti\" (raggiunto) ad \"Argomenti Fase 1 scelti\"; tolto \"Pronto per il pubblico\"; \"Motore automatico ogni giorno\" diventa \"Fabbrica automatica ogni giorno\".",
+      "files": [],
+      "source": "chat",
+      "created": 1795124426925
     }
   ],
   "files": [],
