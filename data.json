@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T21:40:26.000Z",
+  "updatedAt": "2026-11-19T21:42:18.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -923,15 +923,6 @@
       "files": [],
       "source": "chat",
       "created": 1795038767107
-    },
-    {
-      "id": "l20261119f",
-      "date": "2026-11-19",
-      "text": "Rifatti i traguardi di Contenuti: uno per ogni stazione della Fabbrica",
-      "detail": "17 traguardi da \"Argomenti palestra scelti\" (raggiunto) ad \"Argomenti Fase 1 scelti\"; tolto \"Pronto per il pubblico\"; \"Motore automatico ogni giorno\" diventa \"Fabbrica automatica ogni giorno\".",
-      "files": [],
-      "source": "chat",
-      "created": 1795124426925
     }
   ],
   "files": [],
@@ -1182,6 +1173,22 @@
         "text": "In Da decidere vanno solo le decisioni necessarie per il prossimo passo; le altre restano nei documenti di lavoro"
       },
       "archivedAt": "2026-11-19T21:27:29.752Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z20261119x",
+      "kind": "log",
+      "from": "",
+      "item": {
+        "id": "l20261119f",
+        "date": "2026-11-19",
+        "text": "Rifatti i traguardi di Contenuti: uno per ogni stazione della Fabbrica",
+        "detail": "17 traguardi da \"Argomenti palestra scelti\" (raggiunto) ad \"Argomenti Fase 1 scelti\"; tolto \"Pronto per il pubblico\"; \"Motore automatico ogni giorno\" diventa \"Fabbrica automatica ogni giorno\".",
+        "files": [],
+        "source": "chat",
+        "created": 1795124426925
+      },
+      "archivedAt": "2026-11-19T21:42:18.000Z",
       "reason": "deleted"
     }
   ]
