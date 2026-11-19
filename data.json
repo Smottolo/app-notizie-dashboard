@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-18T23:35:31.000Z",
+  "updatedAt": "2026-11-19T17:36:14.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -53,20 +53,36 @@
       "progress": 0,
       "milestones": [
         {
+          "id": "m20261119a",
+          "name": "Argomenti palestra scelti"
+        },
+        {
           "id": "m-con-1",
-          "name": "Linea editoriale"
+          "name": "Regole editoriali e formati v1"
         },
         {
           "id": "m-con-2",
           "name": "Primo articolo"
         },
         {
+          "id": "m20261119b",
+          "name": "Lente v1 (grading degli articoli)"
+        },
+        {
           "id": "m-con-3",
-          "name": "Articoli convincenti"
+          "name": "Articoli palestra convincenti"
+        },
+        {
+          "id": "m20261119c",
+          "name": "Bussola collaudata"
         },
         {
           "id": "m-con-4",
           "name": "Motore automatico ogni giorno"
+        },
+        {
+          "id": "m20261119d",
+          "name": "Argomenti Fase 1 scelti"
         },
         {
           "id": "m-con-5",
@@ -387,16 +403,10 @@
       "hint": "",
       "until": "",
       "status": "todo",
-      "note": "",
+      "note": "Il grading degli articoli si chiamerà Lente: criteri da definire quando ci saranno i primi articoli (punto spostato nell'archivio il 19/11).",
       "log": [],
       "tasks": [],
-      "open": [
-        {
-          "id": "o20261118n",
-          "text": "Grading degli articoli: definire i criteri (si costruisce quando ci saranno i primi articoli)",
-          "done": false
-        }
-      ],
+      "open": [],
       "decisions": [],
       "files": []
     },
@@ -505,7 +515,7 @@
       "hint": "Solo nazionale, per ora",
       "until": "",
       "status": "doing",
-      "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nSistema di grading argomenti v0.1: https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo di grading in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).",
+      "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nBussola v0.1 (grading degli argomenti): https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo della Bussola in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).\nDomande per più avanti (sport, esteri, cronaca giudiziaria, Vaticano, fact-checking, partiti e sondaggi; pesi, testate di confronto, Google Trends, soglie, calibrazione, script): sono nelle sezioni Domande aperte dei due documenti, tolte da Da decidere il 19/11.",
       "log": [
         {
           "id": "l20261116a",
@@ -544,68 +554,8 @@
       "tasks": [],
       "open": [
         {
-          "id": "o20261118a",
-          "text": "Sport: solo parte istituzionale ed economica, o anche i risultati?",
-          "done": false
-        },
-        {
-          "id": "o20261118b",
-          "text": "Esteri: va bene la regola \"entra solo con un aggancio italiano esplicito\"?",
-          "done": false
-        },
-        {
-          "id": "o20261118c",
-          "text": "Cronaca giudiziaria: grandi casi solo dagli atti ufficiali, o fuori del tutto?",
-          "done": false
-        },
-        {
-          "id": "o20261118d",
-          "text": "Vaticano e Chiesa: li trattiamo come notizie nazionali?",
-          "done": false
-        },
-        {
-          "id": "o20261118e",
-          "text": "Fact-checking delle bufale: diventa una sezione dell'app?",
-          "done": false
-        },
-        {
-          "id": "o20261118f",
-          "text": "Partiti e sondaggi: inclusi con regole precise (solo fatti, sondaggi con metodo e campione)?",
-          "done": false
-        },
-        {
-          "id": "o20261118g",
-          "text": "Grading: vanno bene i pesi dei profili Fase 1 ed Espansione?",
-          "done": false
-        },
-        {
-          "id": "o20261118h",
-          "text": "Grading: quali 3 testate di area diversa per il test di neutralità (R1)?",
-          "done": false
-        },
-        {
-          "id": "o20261118i",
-          "text": "Grading: quali 5 testate di riferimento per il valore aggiunto (V2)?",
-          "done": false
-        },
-        {
-          "id": "o20261118j",
-          "text": "Grading: quale termine di riferimento fisso per Google Trends (V1)?",
-          "done": false
-        },
-        {
-          "id": "o20261118k",
-          "text": "Grading: teniamo le soglie delle classi (70 / 55 / 40) fino alla calibrazione?",
-          "done": false
-        },
-        {
-          "id": "o20261118l",
-          "text": "Grading: quali 10 argomenti usare per la calibrazione?",
-          "done": false
-        },
-        {
-          "id": "o20261118m",
-          "text": "Grading: lo script che calcola P, C e F lo facciamo subito con Claude Code o basta un foglio di calcolo?",
+          "id": "o20261119a",
+          "text": "Scegliere 3-5 argomenti palestra con il profilo Prototipo della Bussola",
           "done": false
         }
       ],
@@ -634,6 +584,11 @@
           "id": "d20261118e",
           "date": "2026-11-18",
           "text": "Gli argomenti non si consumano: il file Argomenti è un serbatoio che cresce e a ogni ciclo si valutano solo i nuovi o quelli da rivedere"
+        },
+        {
+          "id": "d20261119a",
+          "date": "2026-11-19",
+          "text": "Il sistema di grading degli argomenti si chiama Bussola; quello degli articoli si chiamerà Lente"
         }
       ],
       "files": [
@@ -760,7 +715,186 @@
       "id": "d7",
       "date": "2026-11-17",
       "text": "Dashboard come web app aggiornabile sia da me sia dalle chat Claude del progetto"
+    },
+    {
+      "id": "d20261119b",
+      "date": "2026-11-19",
+      "text": "In Da decidere vanno solo le decisioni necessarie per il prossimo passo; le altre restano nei documenti di lavoro"
+    },
+    {
+      "id": "d20261119c",
+      "date": "2026-11-19",
+      "text": "Traguardi dei Contenuti rivisti: si segna la Bussola collaudata (non la semplice approvazione della v0.1), insieme ai passaggi concreti tra argomenti palestra e lancio"
     }
   ],
-  "archive": []
+  "archive": [
+    {
+      "id": "z2026111901",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118a",
+        "text": "Sport: solo parte istituzionale ed economica, o anche i risultati?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111902",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118b",
+        "text": "Esteri: va bene la regola \"entra solo con un aggancio italiano esplicito\"?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111903",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118c",
+        "text": "Cronaca giudiziaria: grandi casi solo dagli atti ufficiali, o fuori del tutto?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111904",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118d",
+        "text": "Vaticano e Chiesa: li trattiamo come notizie nazionali?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111905",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118e",
+        "text": "Fact-checking delle bufale: diventa una sezione dell'app?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111906",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118f",
+        "text": "Partiti e sondaggi: inclusi con regole precise (solo fatti, sondaggi con metodo e campione)?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111907",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118g",
+        "text": "Grading: vanno bene i pesi dei profili Fase 1 ed Espansione?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111908",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118h",
+        "text": "Grading: quali 3 testate di area diversa per il test di neutralità (R1)?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111909",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118i",
+        "text": "Grading: quali 5 testate di riferimento per il valore aggiunto (V2)?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111910",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118j",
+        "text": "Grading: quale termine di riferimento fisso per Google Trends (V1)?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111911",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118k",
+        "text": "Grading: teniamo le soglie delle classi (70 / 55 / 40) fino alla calibrazione?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111912",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118l",
+        "text": "Grading: quali 10 argomenti usare per la calibrazione?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111913",
+      "kind": "open",
+      "from": "f1",
+      "item": {
+        "id": "o20261118m",
+        "text": "Grading: lo script che calcola P, C e F lo facciamo subito con Claude Code o basta un foglio di calcolo?",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    },
+    {
+      "id": "z2026111914",
+      "kind": "open",
+      "from": "c1",
+      "item": {
+        "id": "o20261118n",
+        "text": "Grading degli articoli: definire i criteri (si costruisce quando ci saranno i primi articoli)",
+        "done": false
+      },
+      "archivedAt": "2026-11-19T17:36:14.000Z",
+      "reason": "deleted"
+    }
+  ]
 }
