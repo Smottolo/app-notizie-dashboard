@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T19:52:26.000Z",
+  "updatedAt": "2026-11-19T20:22:27.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -91,6 +91,7 @@
       ],
       "order": [
         "g:gmwmgm9995kh",
+        "g:g20261119a",
         "g:g-pro",
         "a:f6"
       ]
@@ -145,12 +146,17 @@
     {
       "id": "g-pro",
       "area": "content",
-      "name": "Produzione"
+      "name": "Strumenti comuni"
     },
     {
       "id": "gmwmgm9995kh",
       "area": "content",
       "name": "Brainstorming"
+    },
+    {
+      "id": "g20261119a",
+      "area": "content",
+      "name": "Fabbrica"
     }
   ],
   "activities": [
@@ -331,12 +337,276 @@
       "files": []
     },
     {
+      "id": "f1",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Bussola (scelta degli argomenti)",
+      "owner": "Andrea",
+      "hint": "Serbatoio degli argomenti + grading; ora obiettivo Facili",
+      "until": "",
+      "status": "doing",
+      "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nBussola v0.1 (grading degli argomenti): https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo della Bussola in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).\nDomande per più avanti (sport, esteri, cronaca giudiziaria, Vaticano, fact-checking, partiti e sondaggi; pesi, testate di confronto, Google Trends, soglie, calibrazione, script): sono nelle sezioni Domande aperte dei due documenti, tolte da Da decidere il 19/11.",
+      "log": [
+        {
+          "id": "l20261116a",
+          "date": "2026-11-16",
+          "text": "Creato il file Argomenti con 116 argomenti in 13 aree",
+          "detail": "Per ogni argomento: interesse, fonti, valore aggiunto, rischi e verdetto. Proposta iniziale: 56 dentro, 38 da valutare, 22 fuori. In fondo 6 domande aperte. https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz",
+          "files": [
+            "u20261119a"
+          ],
+          "source": "chat",
+          "created": 1795038767107
+        },
+        {
+          "id": "l20261118a",
+          "date": "2026-11-18",
+          "text": "Scritto il Sistema di grading argomenti v0.1",
+          "detail": "11 criteri in 3 pilastri (Fattibilità, Rischio, Valore) con rubrica 1-5 a soglie misurabili; 6 criteri bloccanti; certezza dei voti (Misurato 1,0 / Verificato 0,8 / Stimato 0,5); punteggio P 0-100, certezza C, punteggio finale F = P × C; classi A-D, regole per i pareggi, test di robustezza su 3 profili di pesi; scheda argomento in JSON; procedura di calibrazione Andrea vs agente e regole per l'agente. Basato su RICE (Intercom), Admiralty Code (NATO) e valori-notizia (Harcup e O'Neill). Esempio di calcolo su Scioperi dei trasporti con voti non verificati. https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF",
+          "files": [
+            "u20261119b"
+          ],
+          "source": "chat",
+          "created": 1795038767107
+        },
+        {
+          "id": "l20261118b",
+          "date": "2026-11-18",
+          "text": "Aggiunti al grading il profilo Prototipo e il ciclo continuo",
+          "detail": "Profilo Prototipo: filtro perle (V1 o V2 stimati 4-5 → messo da parte), 6 criteri con pesi F2 25, F3 20, R1 20, F6 15, F4 10, R2 10, valore per il lettore a peso zero, a parità vince l'argomento con meno valore. Ciclo continuo: stati degli argomenti (da valutare, perla, palestra, in app, rimandato, escluso), 3 vie per argomenti nuovi (Andrea, agente che segue le fonti ufficiali, divisione in sotto-argomenti), revisione ogni 6 mesi.",
+          "files": [
+            "u20261119b"
+          ],
+          "source": "chat",
+          "created": 1795038767107
+        }
+      ],
+      "tasks": [],
+      "open": [
+        {
+          "id": "o20261119a",
+          "text": "Scegliere 3-5 argomenti palestra con il profilo Prototipo della Bussola",
+          "done": false
+        }
+      ],
+      "decisions": [
+        {
+          "id": "d20261118a",
+          "date": "2026-11-18",
+          "text": "Si parte dagli argomenti facili (più fonti, meno bias politico) e si espande gradualmente verso quelli più difficili"
+        },
+        {
+          "id": "d20261118b",
+          "date": "2026-11-18",
+          "text": "Prima il grading degli argomenti, poi quello degli articoli. Per scegliere gli argomenti si usa un imbuto: screening di tutti, studio approfondito solo della rosa"
+        },
+        {
+          "id": "d20261118c",
+          "date": "2026-11-18",
+          "text": "Il sistema di grading deve essere agent friendly: all'inizio valuta Andrea, poi si delega a un agente dopo la calibrazione"
+        },
+        {
+          "id": "d20261118d",
+          "date": "2026-11-18",
+          "text": "Per ora si usa il profilo Prototipo (solo facilità e rischio) per scegliere 3-5 argomenti palestra; le perle restano da parte finché non saranno migliorati il grading e la scrittura degli articoli"
+        },
+        {
+          "id": "d20261118e",
+          "date": "2026-11-18",
+          "text": "Gli argomenti non si consumano: il file Argomenti è un serbatoio che cresce e a ogni ciclo si valutano solo i nuovi o quelli da rivedere"
+        },
+        {
+          "id": "d20261119e",
+          "date": "2026-11-19",
+          "text": "Bussola = grading degli argomenti; Lente = valutazione delle fonti e dei materiali scelti per raccogliere informazioni (non dei nostri articoli). Insieme scelgono su cosa scrivere e con quali informazioni. La revisione dei nostri articoli sarà un sistema separato, nome da definire"
+        }
+      ],
+      "files": [
+        {
+          "id": "u20261119a",
+          "name": "Argomenti.pdf",
+          "size": 552546,
+          "type": "application/pdf",
+          "path": "uploads/f1/u20261119a-Argomenti.pdf",
+          "added": "2026-11-18T23:35:31.000Z"
+        },
+        {
+          "id": "u20261119b",
+          "name": "Sistema di grading argomenti v0.1.pdf",
+          "size": 385442,
+          "type": "application/pdf",
+          "path": "uploads/f1/u20261119b-Sistema-di-grading-argomenti-v0.1.pdf",
+          "added": "2026-11-18T23:35:31.000Z"
+        }
+      ]
+    },
+    {
+      "id": "x20261119a",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Selezione notizie",
+      "owner": "Ibrido",
+      "hint": "Ogni giorno: trova le notizie negli argomenti scelti, raggruppa le testate sullo stesso fatto, applica soglia e rilevanza",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "x20261119b",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Lente e raccolta informazioni",
+      "owner": "Ibrido",
+      "hint": "Valuta le fonti e i materiali scelti e raccoglie le informazioni",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "x20261119c",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Contesto e retroscena",
+      "owner": "Ibrido",
+      "hint": "Storia e precedenti della notizia, solo da fonti (archivi, nostri articoli)",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "f5",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Controllo di sufficienza ed etichette",
+      "owner": "Agente",
+      "hint": "I materiali bastano per scrivere? Etichette di affidabilità con il motivo",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "x20261119d",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Dossier",
+      "owner": "Agente",
+      "hint": "Fatti puliti e unificati, ognuno con fonte e attribuzione: unica base per la scrittura",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "f4",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Scrittura e regole editoriali",
+      "owner": "Ibrido",
+      "hint": "Scrive solo con ciò che è nel dossier, nel formato pensato per l'app",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "c1",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Revisione",
+      "owner": "Ibrido",
+      "hint": "Controllo dell'articolo prima della pubblicazione (sistema separato dalla Lente, nome da definire)",
+      "until": "",
+      "status": "todo",
+      "note": "La revisione dei nostri articoli sarà un sistema separato dalla Lente (nome da definire): criteri da definire quando ci saranno i primi articoli.",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "x20261119e",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Impaginazione",
+      "owner": "Ibrido",
+      "hint": "Adatta l'articolo all'app senza farlo sembrare scoordinato; legata al Design system",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "x20261119f",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Pubblicazione",
+      "owner": "Agente",
+      "hint": "Messa online nell'app; legata a Server e database",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "x20261119g",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Dopo la pubblicazione",
+      "owner": "Ibrido",
+      "hint": "Correzioni, aggiornamento delle storie che continuano, dati di lettura che tornano alla Bussola",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
       "id": "f2",
       "area": "content",
       "group": "g-pro",
       "name": "Fonti",
       "owner": "Ibrido",
-      "hint": "",
+      "hint": "Catalogo delle fonti, usato da Bussola e Lente",
       "until": "",
       "status": "todo",
       "note": "Le schede di grading degli argomenti raccolgono le fonti trovate (campo fonti_trovate): usarle come base per l'elenco fonti.",
@@ -352,58 +622,10 @@
       "group": "g-pro",
       "name": "Motore AI",
       "owner": "Agente",
-      "hint": "",
+      "hint": "La tecnologia che fa girare le stazioni della Fabbrica",
       "until": "",
       "status": "todo",
       "note": "",
-      "log": [],
-      "tasks": [],
-      "open": [],
-      "decisions": [],
-      "files": []
-    },
-    {
-      "id": "f4",
-      "area": "content",
-      "group": "g-pro",
-      "name": "Regole editoriali",
-      "owner": "Ibrido",
-      "hint": "",
-      "until": "",
-      "status": "todo",
-      "note": "",
-      "log": [],
-      "tasks": [],
-      "open": [],
-      "decisions": [],
-      "files": []
-    },
-    {
-      "id": "f5",
-      "area": "content",
-      "group": "g-pro",
-      "name": "Affidabilità ed etichette",
-      "owner": "Agente",
-      "hint": "",
-      "until": "",
-      "status": "todo",
-      "note": "",
-      "log": [],
-      "tasks": [],
-      "open": [],
-      "decisions": [],
-      "files": []
-    },
-    {
-      "id": "c1",
-      "area": "content",
-      "group": "g-pro",
-      "name": "Controllo qualità e correzioni",
-      "owner": "Ibrido",
-      "hint": "",
-      "until": "",
-      "status": "todo",
-      "note": "La revisione dei nostri articoli sarà un sistema separato dalla Lente (nome da definire): criteri da definire quando ci saranno i primi articoli.",
       "log": [],
       "tasks": [],
       "open": [],
@@ -505,110 +727,6 @@
       "open": [],
       "decisions": [],
       "files": []
-    },
-    {
-      "id": "f1",
-      "area": "content",
-      "group": "gmwmgm9995kh",
-      "name": "Argomenti",
-      "owner": "Andrea",
-      "hint": "Solo nazionale, per ora",
-      "until": "",
-      "status": "doing",
-      "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nBussola v0.1 (grading degli argomenti): https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo della Bussola in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).\nDomande per più avanti (sport, esteri, cronaca giudiziaria, Vaticano, fact-checking, partiti e sondaggi; pesi, testate di confronto, Google Trends, soglie, calibrazione, script): sono nelle sezioni Domande aperte dei due documenti, tolte da Da decidere il 19/11.",
-      "log": [
-        {
-          "id": "l20261116a",
-          "date": "2026-11-16",
-          "text": "Creato il file Argomenti con 116 argomenti in 13 aree",
-          "detail": "Per ogni argomento: interesse, fonti, valore aggiunto, rischi e verdetto. Proposta iniziale: 56 dentro, 38 da valutare, 22 fuori. In fondo 6 domande aperte. https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz",
-          "files": [
-            "u20261119a"
-          ],
-          "source": "chat",
-          "created": 1795038767107
-        },
-        {
-          "id": "l20261118a",
-          "date": "2026-11-18",
-          "text": "Scritto il Sistema di grading argomenti v0.1",
-          "detail": "11 criteri in 3 pilastri (Fattibilità, Rischio, Valore) con rubrica 1-5 a soglie misurabili; 6 criteri bloccanti; certezza dei voti (Misurato 1,0 / Verificato 0,8 / Stimato 0,5); punteggio P 0-100, certezza C, punteggio finale F = P × C; classi A-D, regole per i pareggi, test di robustezza su 3 profili di pesi; scheda argomento in JSON; procedura di calibrazione Andrea vs agente e regole per l'agente. Basato su RICE (Intercom), Admiralty Code (NATO) e valori-notizia (Harcup e O'Neill). Esempio di calcolo su Scioperi dei trasporti con voti non verificati. https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF",
-          "files": [
-            "u20261119b"
-          ],
-          "source": "chat",
-          "created": 1795038767107
-        },
-        {
-          "id": "l20261118b",
-          "date": "2026-11-18",
-          "text": "Aggiunti al grading il profilo Prototipo e il ciclo continuo",
-          "detail": "Profilo Prototipo: filtro perle (V1 o V2 stimati 4-5 → messo da parte), 6 criteri con pesi F2 25, F3 20, R1 20, F6 15, F4 10, R2 10, valore per il lettore a peso zero, a parità vince l'argomento con meno valore. Ciclo continuo: stati degli argomenti (da valutare, perla, palestra, in app, rimandato, escluso), 3 vie per argomenti nuovi (Andrea, agente che segue le fonti ufficiali, divisione in sotto-argomenti), revisione ogni 6 mesi.",
-          "files": [
-            "u20261119b"
-          ],
-          "source": "chat",
-          "created": 1795038767107
-        }
-      ],
-      "tasks": [],
-      "open": [
-        {
-          "id": "o20261119a",
-          "text": "Scegliere 3-5 argomenti palestra con il profilo Prototipo della Bussola",
-          "done": false
-        }
-      ],
-      "decisions": [
-        {
-          "id": "d20261118a",
-          "date": "2026-11-18",
-          "text": "Si parte dagli argomenti facili (più fonti, meno bias politico) e si espande gradualmente verso quelli più difficili"
-        },
-        {
-          "id": "d20261118b",
-          "date": "2026-11-18",
-          "text": "Prima il grading degli argomenti, poi quello degli articoli. Per scegliere gli argomenti si usa un imbuto: screening di tutti, studio approfondito solo della rosa"
-        },
-        {
-          "id": "d20261118c",
-          "date": "2026-11-18",
-          "text": "Il sistema di grading deve essere agent friendly: all'inizio valuta Andrea, poi si delega a un agente dopo la calibrazione"
-        },
-        {
-          "id": "d20261118d",
-          "date": "2026-11-18",
-          "text": "Per ora si usa il profilo Prototipo (solo facilità e rischio) per scegliere 3-5 argomenti palestra; le perle restano da parte finché non saranno migliorati il grading e la scrittura degli articoli"
-        },
-        {
-          "id": "d20261118e",
-          "date": "2026-11-18",
-          "text": "Gli argomenti non si consumano: il file Argomenti è un serbatoio che cresce e a ogni ciclo si valutano solo i nuovi o quelli da rivedere"
-        },
-        {
-          "id": "d20261119e",
-          "date": "2026-11-19",
-          "text": "Bussola = grading degli argomenti; Lente = valutazione delle fonti e dei materiali scelti per raccogliere informazioni (non dei nostri articoli). Insieme scelgono su cosa scrivere e con quali informazioni. La revisione dei nostri articoli sarà un sistema separato, nome da definire"
-        }
-      ],
-      "files": [
-        {
-          "id": "u20261119a",
-          "name": "Argomenti.pdf",
-          "size": 552546,
-          "type": "application/pdf",
-          "path": "uploads/f1/u20261119a-Argomenti.pdf",
-          "added": "2026-11-18T23:35:31.000Z"
-        },
-        {
-          "id": "u20261119b",
-          "name": "Sistema di grading argomenti v0.1.pdf",
-          "size": 385442,
-          "type": "application/pdf",
-          "path": "uploads/f1/u20261119b-Sistema-di-grading-argomenti-v0.1.pdf",
-          "added": "2026-11-18T23:35:31.000Z"
-        }
-      ]
     },
     {
       "id": "x20261118a",
@@ -725,6 +843,11 @@
       "id": "d20261119c",
       "date": "2026-11-19",
       "text": "Traguardi dei Contenuti rivisti: si segna la Bussola collaudata (non la semplice approvazione della v0.1), insieme ai passaggi concreti tra argomenti palestra e lancio"
+    },
+    {
+      "id": "d20261119f",
+      "date": "2026-11-19",
+      "text": "Nasce il gruppo Fabbrica (Contenuti): un'attività per ogni stazione, dalla scelta degli argomenti al dopo-pubblicazione. Argomenti diventa Bussola; Affidabilità ed etichette diventa Controllo di sufficienza ed etichette; Regole editoriali diventa Scrittura e regole editoriali; Controllo qualità e correzioni diventa Revisione (le correzioni passano a Dopo la pubblicazione). Produzione diventa Strumenti comuni (Fonti, Motore AI)"
     }
   ],
   "archive": [
