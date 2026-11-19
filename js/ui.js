@@ -550,6 +550,7 @@
     for (const sel of ["#feed", "#open-list", "#archive-list"]) $(sel).addEventListener("scroll", (e) => updateFade(e.target), { passive: true });
     $("#archive-box").addEventListener("toggle", () => renderArchive());
     phoneMq.addEventListener("change", () => render(lastData, lastStatus));
+    window.addEventListener("resize", () => root.querySelectorAll(".track.scroll").forEach(roadFade), { passive: true });
     window.addEventListener("hashchange", route);
 
     route();
@@ -627,6 +628,11 @@
       }
       case "owner": if (current) Model.setOwner(current, value); break;
       case "milestone": Model.clickMilestone(id); break;
+      case "road-scroll": {
+        const tr = t.parentElement.querySelector(".track");
+        tr.scrollBy({ left: Number(value) * Math.max(160, tr.clientWidth * 0.7), behavior: "smooth" });
+        break;
+      }
       case "area": mobileArea = value; renderAreas(); break;
       case "log-detail": {
         const ta = $("#log-form").detail;
@@ -749,37 +755,73 @@
     showUndo(`«${act.name}» spostata nell'Archivio`, undo);
   }
 
-  // ---------- verso il lancio ----------
+  // ---------- timeline ----------
+  // Ogni area è una striscia che scorre in orizzontale (i traguardi possono essere tanti), con i nomi
+  // sempre leggibili; il Lancio resta fisso in fondo. La striscia si porta da sola sul prossimo traguardo.
+  const roadSeen = {};            // area -> progresso già mostrato (per lo scorrimento automatico)
+  function nodeHtml(m, i, nodes, reached, next) {
+    const isLaunch = m.id === LAUNCH.id;
+    const ok = reached[i];
+    const isNext = next && m.id === next.id;
+    // segmento a destra di questo nodo: pieno se il nodo seguente è raggiunto, tenue se è il prossimo
+    const right = i < nodes.length - 1 ? (reached[i + 1] ? "seg-ok" : (next && nodes[i + 1].id === next.id && ok) ? "seg-next" : "") : "";
+    const left = i > 0 ? (ok ? "in-ok" : isNext && reached[i - 1] ? "in-next" : "") : "";
+    return `<li class="node ${ok ? "ok" : ""} ${isNext ? "next" : ""} ${isLaunch ? "launch" : ""} ${right} ${left}">
+      <button data-action="milestone" data-id="${m.id}" aria-pressed="${ok}" title="${esc(m.name)}${ok ? " · raggiunto" : ""}">
+        <span class="dot">${ok ? ICON.check : isLaunch ? ICON.flag : `<small>${i + 1}</small>`}</span>
+        <span class="node-name">${esc(m.name)}</span>
+      </button>
+    </li>`;
+  }
   function renderRoadmap() {
-    $("#roadmap").innerHTML = AREAS.map((a) => {
+    const html = AREAS.map((a) => {
       const done = Model.progress(a.id);
       const next = Model.nextMilestone(a.id);
       const nodes = [...a.milestones, LAUNCH];
       const reached = nodes.map((m) => Model.isReached(m.id));
+      const k = nodes.length - 1;
       return `<div class="road ${a.id}">
         <div class="road-label">
           <span class="road-name"><i></i>${a.name}</span>
           <span class="road-count">${done} di ${a.milestones.length}</span>
         </div>
-        <ol class="track">
-          ${nodes.map((m, i) => {
-            const isLaunch = m.id === LAUNCH.id;
-            const ok = reached[i];
-            const isNext = next && m.id === next.id;
-            // segmento a destra di questo nodo: pieno se il nodo seguente è raggiunto, tenue se è il prossimo
-            const right = i < nodes.length - 1 ? (reached[i + 1] ? "seg-ok" : (next && nodes[i + 1].id === next.id && ok) ? "seg-next" : "") : "";
-            const left = i > 0 ? (ok ? "in-ok" : isNext && reached[i - 1] ? "in-next" : "") : "";
-            return `<li class="node ${ok ? "ok" : ""} ${isNext ? "next" : ""} ${isLaunch ? "launch" : ""} ${right} ${left}">
-              <button data-action="milestone" data-id="${m.id}" aria-pressed="${ok}" title="${esc(m.name)}${ok ? " · raggiunto" : ""}">
-                <span class="dot">${ok ? ICON.check : isLaunch ? ICON.flag : ""}</span>
-                <span class="node-name">${esc(m.name)}</span>
-              </button>
-            </li>`;
-          }).join("")}
-        </ol>
-        <p class="road-next">${next ? `Prossimo: <b>${esc(next.name)}</b>` : "Lanciato"}</p>
+        <div class="road-strip">
+          <button class="road-arrow l" data-action="road-scroll" data-value="-1" tabindex="-1" aria-label="Traguardi precedenti">${ICON.back}</button>
+          <ol class="track scroll" data-area="${a.id}">${nodes.slice(0, k).map((m, i) => nodeHtml(m, i, nodes, reached, next)).join("")}</ol>
+          <button class="road-arrow r" data-action="road-scroll" data-value="1" tabindex="-1" aria-label="Traguardi successivi">${ICON.chevron}</button>
+        </div>
+        <ol class="track launch-track">${nodeHtml(nodes[k], k, nodes, reached, next)}</ol>
       </div>`;
     }).join("");
+    const box = $("#roadmap");
+    if (box.dataset.html !== html) {
+      const keep = Object.fromEntries([...box.querySelectorAll(".track.scroll")].map((t) => [t.dataset.area, t.scrollLeft]));
+      box.innerHTML = html;
+      box.dataset.html = html;
+      box.querySelectorAll(".track.scroll").forEach((t) => {
+        t.scrollLeft = keep[t.dataset.area] || 0;
+        t.addEventListener("scroll", () => roadFade(t), { passive: true });
+      });
+    }
+    // porta in vista il prossimo traguardo: all'apertura e quando cambia il progresso
+    box.querySelectorAll(".track.scroll").forEach((t) => {
+      const area = t.dataset.area;
+      const p = Model.progress(area);
+      if (roadSeen[area] !== p && t.clientWidth) {
+        const nodes = t.querySelectorAll(".node");
+        const target = nodes[Math.max(0, p - 1)];     // l'ultimo raggiunto a sinistra, poi il prossimo
+        const left = target && p > 0 ? target.offsetLeft - 8 : 0;
+        t.scrollTo({ left, behavior: roadSeen[area] === undefined ? "auto" : "smooth" });
+        roadSeen[area] = p;
+      }
+      roadFade(t);
+    });
+  }
+  function roadFade(t) {
+    const max = t.scrollWidth - t.clientWidth;
+    const strip = t.parentElement;
+    strip.classList.toggle("more-l", t.scrollLeft > 4);
+    strip.classList.toggle("more-r", t.scrollLeft < max - 4);
   }
 
   // ---------- priorità ----------
