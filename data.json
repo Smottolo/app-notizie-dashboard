@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T21:14:48.000Z",
+  "updatedAt": "2026-11-19T21:27:31.574Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -931,11 +931,6 @@
       "text": "Dashboard come web app aggiornabile sia da me sia dalle chat Claude del progetto"
     },
     {
-      "id": "d20261119b",
-      "date": "2026-11-19",
-      "text": "In Da decidere vanno solo le decisioni necessarie per il prossimo passo; le altre restano nei documenti di lavoro"
-    },
-    {
       "id": "d20261119c",
       "date": "2026-11-19",
       "text": "Traguardi dei Contenuti rivisti: si segna la Bussola collaudata (non la semplice approvazione della v0.1), insieme ai passaggi concreti tra argomenti palestra e lancio"
@@ -1126,6 +1121,18 @@
       },
       "archivedAt": "2026-11-19T19:52:26.000Z",
       "reason": "superseded"
+    },
+    {
+      "id": "zmwo29syf1i2",
+      "kind": "decisions",
+      "from": "",
+      "item": {
+        "id": "d20261119b",
+        "date": "2026-11-19",
+        "text": "In Da decidere vanno solo le decisioni necessarie per il prossimo passo; le altre restano nei documenti di lavoro"
+      },
+      "archivedAt": "2026-11-19T21:27:29.752Z",
+      "reason": "deleted"
     }
   ]
 }
