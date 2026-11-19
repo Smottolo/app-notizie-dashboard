@@ -81,7 +81,13 @@
     editActivity: (id, patch) => S().editActivity(id, patch),
     removeActivity: (id) => S().removeActivity(id),
     setOwner: (id, owner) => S().editActivity(id, { owner }),
-    setStatus: (id, s) => S().setActivityStatus(id, s),
+    setStatus: (id, s, doneKind) => S().setActivityStatus(id, s, doneKind),
+    /** stato a 4 voci per l'interfaccia: todo | doing | paused | ended (nei dati: todo / doing / done + doneKind) */
+    phase: (act) => act.status === "done" ? (act.doneKind === "ended" ? "ended" : "paused") : act.status === "doing" ? "doing" : "todo",
+    setPhase(id, phase) {
+      if (phase === "paused" || phase === "ended") S().setActivityStatus(id, "done", phase);
+      else S().setActivityStatus(id, phase);
+    },
     setNote: (id, text) => S().setNote(id, text),
 
     // ---------- dentro un'attività ----------
@@ -101,6 +107,7 @@
       if (Object.keys(patch).length) S().editSub(a, "decisions", id, patch);
     },
     removeDecision: (a, id) => S().removeSub(a, "decisions", id),
+    supersedeDecision: (a, id) => S().supersedeDecision(a, id),
     addFiles: (a, files) => S().uploadFiles(a, files),
     removeFile: (a, id) => S().removeSub(a, "files", id),
 
@@ -123,6 +130,32 @@
       return Model.sortLog(out);
     },
     lastLog: (a) => Model.sortLog(Model.logOf(a))[0] || null,
+
+    // ---------- archivio ----------
+    /**
+     * tutto ciò che è uscito di scena: elementi archiviati (eliminati, superati) + task completati,
+     * punti decisi e idee spuntate, che restano al loro posto con done: true.
+     * Ogni voce: { key, kind, reason, item, act (attività o null), from, date, archiveId? }
+     */
+    archive() {
+      const d = D();
+      if (!d) return [];
+      const actOf = (id) => id ? d.activities.find((a) => a.id === id) || (d.archive || []).find((z) => z.kind === "activity" && z.item.id === id)?.item || null : null;
+      const out = (d.archive || []).map((z) => ({
+        key: z.id, archiveId: z.id, kind: z.kind, reason: z.reason, item: z.item, from: z.from,
+        act: z.kind === "activity" ? z.item : actOf(z.from), date: String(z.archivedAt || "").slice(0, 10),
+        canRestore: z.kind === "activity" || z.kind === "ideas" || !z.from || d.activities.some((a) => a.id === z.from),
+      }));
+      const doneOf = (list, kind, act) => (list || []).filter((x) => x.done).forEach((x) => out.push({
+        key: `${kind}:${act?.id || ""}:${x.id}`, kind, reason: "done", item: x, from: act?.id || "", act,
+        date: x.doneAt || (x.created ? new Date(x.created).toISOString().slice(0, 10) : ""), canRestore: true,
+      }));
+      doneOf(d.tasks, "tasks", null); doneOf(d.open, "open", null); doneOf(d.ideas, "ideas", null);
+      for (const a of d.activities) { doneOf(a.tasks, "tasks", a); doneOf(a.open, "open", a); }
+      return out.sort((x, y) => String(y.date).localeCompare(String(x.date)));
+    },
+    restore: (archiveId) => S().restore(archiveId),
+    purge: (archiveId) => S().purge(archiveId),
   };
 
   window.Model = Model;

@@ -335,9 +335,6 @@ h1, h2, h3 { margin: 0; letter-spacing: -.02em; }
   font-size: 11px; font-weight: 600; padding: 0 7px; border-radius: 6px; background: var(--fill); color: var(--muted);
 }
 .act-tags svg { font-size: 11px; }
-.act-tags .st.doing { background: var(--orange-soft); color: var(--orange-text); }
-.act-tags .st.done { background: var(--green-soft); color: var(--green-text); }
-.activity.done .act-name { color: var(--muted); }
 .act-go { color: var(--faint); font-size: 15px; display: grid; }
 .owner.andrea { background: var(--accent-soft) !important; color: var(--accent) !important; }
 .owner.agente { background: var(--indigo-soft) !important; color: var(--indigo) !important; }
@@ -794,11 +791,19 @@ button.ctx:hover { background: var(--fill-2); }
 .log-day:first-child { padding-top: 6px; }
 .log-entry { position: relative; display: flex; gap: 12px; padding: 6px 0 8px; }
 .log-entry::before {   /* linea del tempo */
-  content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--fill-2); border-radius: 1px;
+  content: ""; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: var(--fill-2); border-radius: 1px;
 }
 .log-day + .log-entry::before { top: 12px; }
-.log-entry:has(+ .log-day)::before, .log-entry:last-child::before { bottom: calc(100% - 14px); }
-.log-dot { position: relative; z-index: 1; flex: none; width: 10px; height: 10px; margin-top: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px var(--card); }
+.log-entry:has(+ .log-day)::before, .log-entry:last-child::before { bottom: calc(100% - 17px); }
+/* tipo di voce = icona (spunta = fatto, martelletto = decisione), senza colore: il colore è dell'area, sull'etichetta */
+.log-mark {
+  position: relative; z-index: 1; flex: none; width: 22px; height: 22px; margin-top: 0; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; background: var(--card); color: var(--muted);
+  box-shadow: inset 0 0 0 1.5px var(--fill-2), 0 0 0 3px var(--card);
+}
+.log-mark svg { stroke-width: 2.8; }
+.log-mark.dec { background: var(--text); color: var(--card); box-shadow: 0 0 0 3px var(--card); }
+.log-mark.dec svg { stroke-width: 2.2; }
 .log-body { flex: 1; min-width: 0; }
 .log-top { display: flex; align-items: flex-start; gap: 4px; }
 .log-text { flex: 1; min-width: 0; font-size: 15px; line-height: 1.4; font-weight: 500; cursor: pointer; overflow-wrap: anywhere; border-radius: 6px; padding-top: 1px; }
@@ -859,13 +864,8 @@ a.att:hover { background: var(--fill-2); }
 .log-day { display: flex; align-items: baseline; gap: 8px; }
 .log-day small { font-size: 12px; font-weight: 500; color: var(--faint); text-transform: none; letter-spacing: 0; }
 
-/* decisioni nel diario: puntino viola e etichetta "Deciso" */
-.log-entry.dec .log-dot { background: var(--commercial); }
-.dec-tag {
-  display: inline-block; margin-right: 4px; padding: 1px 6px; border-radius: 5px; vertical-align: 1px;
-  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
-  background: var(--commercial-soft); color: var(--commercial);
-}
+/* decisioni nel diario: stesso testo, icona piena */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* da decidere in evidenza */
 .decide-card { box-shadow: var(--shadow), inset 0 0 0 1.5px var(--orange-soft); }
@@ -911,3 +911,133 @@ a.att:hover { background: var(--fill-2); }
 .h-icon.indigo { background: var(--indigo); color: #fff; }
 .h-icon.yellow { background: #ffcc00; color: #fff; }
 @media (prefers-color-scheme: dark) { .h-icon.yellow { background: #ffd60a; color: #1c1c1e; } }
+
+/* ---------- stato delle attività: Da fare · Attiva · [Sospesa | Terminata] ---------- */
+.phase { display: flex; gap: 2px; padding: 2px; border-radius: 11px; background: var(--fill); }
+.ph {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 0; min-width: 0;
+  min-height: 36px; padding: 0 10px; border-radius: 9px; white-space: nowrap;
+  font-size: 14px; font-weight: 500; color: var(--muted); transition: background .2s, color .2s, flex-grow .25s;
+}
+.ph:hover { color: var(--text); }
+.ph-ico { display: grid; font-size: 17px; }
+.ph-label { overflow: hidden; text-overflow: ellipsis; }
+.ph.todo .ph-ico { color: var(--faint); }
+.ph.doing .ph-ico { color: var(--green); }
+.ph.paused .ph-ico { color: var(--orange); }
+.ph.ended .ph-ico { color: var(--muted); }
+.ph-ico .tick { stroke: var(--fill); stroke-width: 2.4; }
+.ph.on .ph-ico .tick { stroke: var(--card); }
+.ph.on { background: var(--card); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); }
+.ph.on.doing { color: var(--green-text); }
+.ph.on.paused { color: var(--orange-text); }
+@media (prefers-color-scheme: dark) {
+  .ph.on { background: #636366; }
+  .ph.on .ph-ico .tick { stroke: #636366; }
+}
+/* Sospesa e Terminata condividono un posto: quella scelta è grande, l'altra è una piccola icona */
+.ph-pair { display: flex; gap: 2px; flex: 1.35 1 0; min-width: 0; }
+.ph-pair .ph.mini { flex: 0 0 34px; padding: 0; }
+.ph-pair .ph.mini:not(.on) { opacity: .75; }
+/* pallino "Attiva" con una pulsazione leggera */
+.live-halo { fill: none; stroke: none; }
+.ph.doing.on .live-halo, .phase.compact .ph.doing.on .live-halo {
+  fill: currentColor; opacity: 0; transform-box: fill-box; transform-origin: center; animation: halo 2.2s ease-out infinite;
+}
+@keyframes halo { 0% { transform: scale(.5); opacity: .45; } 80%, 100% { transform: scale(1.1); opacity: 0; } }
+#p-status .phase { width: 100%; }
+
+/* versione compatta, nelle card delle attività */
+.phase.compact { flex: none; gap: 0; padding: 2px; border-radius: 9px; }
+.phase.compact .ph { flex: none; min-width: 30px; min-height: 28px; padding: 0 6px; gap: 4px; font-size: 12px; border-radius: 7px; }
+.phase.compact .ph:not(.on) { padding: 0; width: 30px; }
+.phase.compact .ph-ico { font-size: 15px; }
+.phase.compact .ph-pair { flex: none; gap: 0; margin-left: 3px; padding-left: 3px; border-left: .5px solid var(--line); }
+.phase.compact .ph-pair .ph.mini { flex: none; }
+@media (hover: none) { .phase.compact .ph { min-height: 34px; } .phase.compact .ph:not(.on) { width: 34px; } }
+
+/* card attività: tutta la card apre la pagina, il controllo dello stato sta sopra */
+.act-open { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.act-open:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.activity .act-body, .activity .act-go { position: relative; pointer-events: none; }
+.activity .phase { pointer-events: auto; position: relative; z-index: 1; }
+.act-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.act-foot .act-tags { margin-top: 0; flex: 1 1 auto; min-width: 0; }
+.act-foot .phase { margin-left: auto; }
+.activity.paused .act-name, .activity.ended .act-name { color: var(--muted); }
+.activity.ended .act-meta { opacity: .7; }
+
+/* ---------- sezioni lunghe: su Mac scorrono dentro, su iPhone a pagine ---------- */
+@media (min-width: 701px) {
+  .scrollbox { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  #feed { max-height: 620px; }
+  #open-list { max-height: 340px; }
+  #archive-list { max-height: 440px; }
+  .scrollbox.fade {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 64px), transparent);
+  }
+  .scrollbox .log-day { position: sticky; top: 0; z-index: 2; background: var(--card); }
+}
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 10px; }
+.pager button {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--fill); color: var(--accent); font-size: 18px; transition: background .15s;
+}
+.pager button svg { stroke-width: 2.4; }
+.pager button:hover { background: var(--fill-2); }
+.pager button:disabled { color: var(--faint); opacity: .55; pointer-events: none; }
+.pager span { min-width: 64px; text-align: center; font-size: 14px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ---------- archivio: discreto e richiudibile ---------- */
+.archive-card { padding: 0; margin: 28px 0 8px; background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.archive-card[open] { background: var(--card); box-shadow: var(--shadow); }
+.archive-card summary {
+  display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 16px 0 18px; cursor: pointer; list-style: none; color: var(--muted);
+}
+.archive-card summary::-webkit-details-marker { display: none; }
+.archive-card summary b { font-size: 16px; font-weight: 600; }
+.archive-card[open] summary { color: var(--text); }
+.archive-card .sum-chev { margin-left: auto; color: var(--faint); display: grid; transition: transform .2s; }
+.archive-card[open] .sum-chev { transform: rotate(90deg); }
+.archive-inner { padding: 0 18px 16px; }
+.archive-inner .card-sub { margin: 0 0 10px; }
+.chip small { font-size: 12px; opacity: .6; margin-left: 1px; }
+.row.arch { align-items: center; gap: 10px; }
+.arch-ico {
+  width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center;
+  background: var(--fill); color: var(--muted); font-size: 15px;
+}
+.row.arch .row-text { cursor: default; font-size: 15px; }
+.row.arch.done .row-text { text-decoration: none; color: var(--text); }
+.arch-type { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin-right: 2px; }
+.row.arch time { font-size: 12px; color: var(--faint); margin-left: 2px; }
+.restore-btn {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 12px; border-radius: 10px;
+  background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; transition: background .15s;
+}
+.restore-btn:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.restore-btn:disabled { opacity: .4; pointer-events: none; }
+.restore-btn svg { font-size: 14px; stroke-width: 2.4; }
+.row.arch .purge { margin-right: -10px; }
+@media (hover: none) { .row.arch .purge { display: grid; opacity: .55; width: 36px; } }
+@media (max-width: 600px) {
+  .restore-btn { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .restore-btn span { display: none; }
+  .archive-inner { padding: 0 16px 14px; }
+}
+#sheet-supersede svg { font-size: 16px; }
+.purge-slot { flex: none; width: 40px; margin-right: -10px; }
+@media (hover: none) { .purge-slot { width: 36px; } }
+@media (prefers-color-scheme: dark) {
+  .phase.compact .ph.on { background: #48484a; }
+  .phase.compact .ph.on .ph-ico .tick { stroke: #48484a; }
+}
+/* lo stato non tronca i nomi: ogni segmento è largo quanto il suo contenuto, lo spazio in più si divide */
+.ph { flex: 1 1 auto; }
+.ph-pair { flex: 1 1 auto; }
+.ph-label { overflow: visible; }
+@media (max-width: 600px) {
+  #p-status .ph { padding: 0 8px; gap: 5px; font-size: 13.5px; }
+  #p-status .ph-pair .ph.mini { flex: 0 0 32px; padding: 0; }
+}

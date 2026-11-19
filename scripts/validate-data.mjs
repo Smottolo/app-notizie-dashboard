@@ -76,6 +76,7 @@ acts.forEach((a, i) => {
   if (a.group && !groups.some((g) => g.id === a.group && g.area === a.area)) errors.push(`${w}: gruppo "${a.group}" inesistente in questa area`);
   if (!OWNERS.includes(a.owner)) errors.push(`${w}: owner deve essere ${OWNERS.join(", ")}`);
   if (!STATUSES.includes(a.status)) errors.push(`${w}: status deve essere todo, doing o done`);
+  if (a.doneKind !== undefined && !["paused", "ended"].includes(a.doneKind)) errors.push(`${w}: doneKind deve essere "paused" (sospesa) o "ended" (terminata)`);
   if (!msOk(a.until, a.area)) errors.push(`${w}: until "${a.until}" non è un traguardo della sua area`);
   if (typeof a.note !== "string") errors.push(`${w}: note deve essere un testo`);
   checkLog(a.log ?? [], `${w}.log`, a.files ?? []);
@@ -85,6 +86,7 @@ acts.forEach((a, i) => {
     if (typeof t.done !== "boolean") errors.push(`${tw}: done deve essere true o false`);
     if (!PRIORITIES.includes(t.priority)) errors.push(`${tw}: priority deve essere alta, media o bassa`);
     if (t.due && !isDate(t.due)) errors.push(`${tw}: due deve essere AAAA-MM-GG o vuoto`);
+    if (t.doneAt && !isDate(t.doneAt)) errors.push(`${tw}: doneAt deve essere AAAA-MM-GG`);
     if (!msOk(t.milestone, a.area)) errors.push(`${tw}: milestone "${t.milestone}" non è un traguardo dell'area`);
   });
   arr(a.open, `${w}.open`).forEach((o, k) => {
@@ -119,9 +121,25 @@ arr(d.decisions, "decisions").forEach((x, i) => {
 });
 if (Array.isArray(d.decisions)) uniq(d.decisions, "decisions");
 
+// archivio: niente si cancella, si sposta qui { id, kind, from, item, archivedAt, reason }
+const KINDS = ["tasks", "open", "ideas", "decisions", "log", "files", "activity"];
+const REASONS = ["deleted", "done", "superseded"];
+const archive = arr(d.archive ?? [], "archive");
+archive.forEach((z, i) => {
+  const w = `archive[${i}]`;
+  if (!isStr(z.id)) errors.push(`${w}: id mancante`);
+  if (!KINDS.includes(z.kind)) errors.push(`${w}: kind deve essere ${KINDS.join(", ")}`);
+  if (typeof z.from !== "string") errors.push(`${w}: from deve essere l'id di un'attività o ""`);
+  if (!z.item || typeof z.item !== "object" || !isStr(z.item.id)) errors.push(`${w}: item deve essere l'elemento archiviato, con il suo id`);
+  if (!z.archivedAt || isNaN(Date.parse(z.archivedAt))) errors.push(`${w}: archivedAt deve essere una data ISO`);
+  if (!REASONS.includes(z.reason)) errors.push(`${w}: reason deve essere ${REASONS.join(", ")}`);
+  if (z.reason === "superseded" && z.kind !== "decisions") errors.push(`${w}: solo le decisioni possono essere "superseded"`);
+});
+uniq(archive, "archive");
+
 if (errors.length) {
   console.error(`❌ ${path}: ${errors.length} errori\n - ` + errors.join("\n - "));
   process.exit(1);
 }
 const nLog = (d.log?.length || 0) + acts.reduce((n, a) => n + (a.log?.length || 0), 0);
-console.log(`✅ ${path} valido (${areas.length} aree, ${groups.length} gruppi, ${acts.length} attività, ${nLog} voci di diario, ${d.decisions.length} decisioni in comune)`);
+console.log(`✅ ${path} valido (${areas.length} aree, ${groups.length} gruppi, ${acts.length} attività, ${nLog} voci di diario, ${d.decisions.length} decisioni in comune, ${archive.length} in archivio)`);

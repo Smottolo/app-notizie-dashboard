@@ -23,12 +23,18 @@
  *   Traguardi:   setProgress(areaId, n) · setLaunched(bool) · setMilestones(areaId, [{id?, name}])
  *   Gruppi:      addGroup(areaId, name) · renameGroup(id, name) · removeGroup(id) · moveBlock(areaId, key, dir)
  *   Attività:    addActivity({area, group, name, owner, hint, until}) · editActivity(id, patch) · removeActivity(id)
- *                setActivityStatus(id, status) · setNote(id, text)
+ *                setActivityStatus(id, status, doneKind?) · setNote(id, text)
+ *                (status "done" + doneKind "paused" = sospesa, "ended" = terminata; senza doneKind vale "paused")
  *   Dentro un'attività (sub = "log" | "tasks" | "open" | "decisions" | "files"):
  *                addSub(id, sub, fields) · editSub(id, sub, itemId, patch) · removeSub(id, sub, itemId)
  *                Con id = "" si agisce sul diario e sui file "In comune" (solo sub "log" e "files").
  *                "log" è il diario delle cose fatte: { id, date, text, detail, files: [id file], source, created }
  *   File:        uploadFiles(id, FileList) -> Promise<{ok, errors, ids}>  (carica nel repo e aggiunge i riferimenti)
+ *   Archivio:    niente si cancella davvero: le remove… spostano l'elemento in data.archive
+ *                { id, kind, from, item, archivedAt, reason: "deleted"|"done"|"superseded", links? }
+ *                (kind = "tasks"|"open"|"ideas"|"decisions"|"log"|"files"|"activity"; from = id attività o "").
+ *                supersedeDecision(actId, id) · restore(archiveId) -> true|false · purge(archiveId) (elimina per sempre)
+ *                Le stesse undo() ritornate dalle remove… sono un restore.
  */
 (function () {
   const C = window.APP_CONFIG;
@@ -37,6 +43,8 @@
   const SUBS = ["log", "tasks", "open", "decisions", "files"];
   const TOP_SUBS = ["log", "files"];   // diario e file "In comune"
   const STATUSES = ["todo", "doing", "done"];
+  const DONE_KINDS = ["paused", "ended"];   // per lo stato "done": sospesa o terminata
+  const KINDS = ["tasks", "open", "ideas", "decisions", "log", "files", "activity"];
   const LAUNCH = "m-launch";
   const REPO_API = `https://api.github.com/repos/${C.owner}/${C.repo}`;
   const API = `${REPO_API}/contents/${C.dataPath}`;
@@ -112,6 +120,7 @@
     LISTS.forEach((l) => (d[l] ??= []));
     d.decisions ??= [];
     TOP_SUBS.forEach((s) => (d[s] ??= []));
+    d.archive ??= [];
     [d, ...d.activities].forEach((c) => c.log.forEach((e) => { e.files ??= []; e.detail ??= ""; }));
     fixOrder(d);
     return d;
@@ -248,7 +257,8 @@
     fr.onerror = () => ko(new Error(`Impossibile leggere ${file.name}`));
     fr.readAsArrayBuffer(file);
   });
-  const isReferenced = (d, path) => !!d && (d.activities.some((a) => a.files.some((f) => f.path === path)) || (d.files || []).some((f) => f.path === path));
+  const isReferenced = (d, path) => !!d && (d.activities.some((a) => a.files.some((f) => f.path === path)) || (d.files || []).some((f) => f.path === path)
+    || (d.archive || []).some((z) => z.kind === "files" ? z.item?.path === path : z.kind === "activity" && (z.item?.files || []).some((f) => f.path === path)));
 
   async function uploadOne(actId, file) {
     if (file.size > MAX_FILE) throw new Error(`«${file.name}» supera i 25 MB.`);
@@ -333,6 +343,54 @@
     d.areas.forEach((a) => (a.order = a.order.filter((k) => k !== "a:" + act.id)));
   }
 
+  /** sposta un elemento nell'archivio (dentro un'operazione: lavora su d) */
+  function archiveIn(d, entry) {
+    d.archive ??= [];
+    if (!findIn(d.archive, entry.id)) d.archive.push(clone(entry));
+  }
+  /** rimette al suo posto un elemento archiviato; false se il contenitore non c'è (es. attività archiviata) */
+  function restoreIn(d, z) {
+    if (z.kind === "activity") {
+      if (findIn(d.activities, z.item.id)) return true;
+      const x = clone(z.item);
+      if (x.group && !d.groups.some((g) => g.id === x.group && g.area === x.area)) x.group = "";
+      if (!areaOf(d, x.area)) return false;
+      place(d, x);
+      fixOrder(d);
+      cleanRefs(d);
+      return true;
+    }
+    const list = z.kind === "ideas" ? d.ideas : box(d, z.from)?.[z.kind];
+    if (!list) return false;
+    if (!findIn(list, z.item.id)) {
+      const x = clone(z.item);
+      if (z.reason === "done" && "done" in x) x.done = false;
+      list.push(x);
+      if (z.kind === "files") (z.links || []).forEach((eid) => { const e = findIn(box(d, z.from).log, eid); if (e && !e.files.includes(x.id)) e.files.push(x.id); });
+      if (z.kind === "log") { const c = box(d, z.from); x.files = (x.files || []).filter((fid) => findIn(c.files, fid)); }
+    }
+    return true;
+  }
+  function archiveSub(actId, sub, itemId, reason) {
+    const a = data && box(data, actId);
+    const item = a && findIn(a[sub], itemId);
+    if (!item) return () => {};
+    const z = { id: newId("z"), kind: sub, from: actId || "", item: clone(item), archivedAt: new Date().toISOString(), reason };
+    if (sub === "files") z.links = a.log.filter((e) => e.files?.includes(itemId)).map((e) => e.id);
+    apply(reason === "superseded" ? "decisione superata" : `archiviato da ${sub}`, (d) => {
+      const x = box(d, actId);
+      const cur = x && findIn(x[sub], itemId);
+      if (!cur) return;
+      z.item = clone(cur);
+      x[sub] = x[sub].filter((y) => y.id !== itemId);
+      // un file tolto sparisce anche dalle voci del diario che lo allegavano (torna con il ripristino)
+      if (sub === "files") x.log.forEach((e) => { if (e.files?.includes(itemId)) e.files = e.files.filter((f) => f !== itemId); });
+      archiveIn(d, z);
+    });
+    return () => Store.restore(z.id);
+  }
+  const canRestore = (d, z) => z.kind === "activity" ? !!areaOf(d, z.item.area) : z.kind === "ideas" || !!box(d, z.from);
+
   const Store = {
     get data() { return data; },
     get status() { return status(); },
@@ -386,7 +444,13 @@
       const cur = data && findIn(data[list] || [], id);
       if (!cur) return;
       const done = !cur.done;                       // valore esplicito: ripetibile sulla versione remota
-      apply(`${done ? "spuntato" : "riaperto"} in ${list}`, (d) => { const x = findIn(d[list], id); if (x) x.done = done; });
+      const doneAt = done ? today() : "";
+      apply(`${done ? "spuntato" : "riaperto"} in ${list}`, (d) => {
+        const x = findIn(d[list], id);
+        if (!x) return;
+        x.done = done;
+        if (doneAt) x.doneAt = doneAt; else delete x.doneAt;
+      });
     },
     editItem(list, id, text) {
       if (!text.trim()) return;
@@ -396,11 +460,9 @@
       const arr = data?.[list] || [];
       const idx = arr.findIndex((x) => x.id === id);
       if (idx < 0) return () => {};
-      const saved = clone(arr[idx]);
-      apply(`eliminato da ${list}`, (d) => { d[list] = d[list].filter((x) => x.id !== id); });
-      return () => apply(`ripristinato in ${list}`, (d) => {
-        if (!findIn(d[list], saved.id)) d[list].splice(Math.min(idx, d[list].length), 0, clone(saved));
-      });
+      const z = { id: newId("z"), kind: list, from: "", item: clone(arr[idx]), archivedAt: new Date().toISOString(), reason: "deleted" };
+      apply(`archiviato da ${list}`, (d) => { d[list] = d[list].filter((x) => x.id !== id); archiveIn(d, z); });
+      return () => Store.restore(z.id);
     },
     addDecision(text, date) {
       if (!text.trim()) return null;
@@ -420,11 +482,7 @@
     removeDecision(id) {
       const idx = data?.decisions.findIndex((x) => x.id === id) ?? -1;
       if (idx < 0) return () => {};
-      const saved = clone(data.decisions[idx]);
-      apply("decisione eliminata", (d) => { d.decisions = d.decisions.filter((x) => x.id !== id); });
-      return () => apply("decisione ripristinata", (d) => {
-        if (!findIn(d.decisions, saved.id)) d.decisions.splice(Math.min(idx, d.decisions.length), 0, clone(saved));
-      });
+      return archiveSub("", "decisions", id, "deleted");
     },
 
     // ---------- traguardi ----------
@@ -541,23 +599,26 @@
       const idx = data?.activities.findIndex((a) => a.id === id) ?? -1;
       if (idx < 0) return () => {};
       const saved = clone(data.activities[idx]);
-      const area = areaOf(data, saved.area);
-      const pos = area ? area.order.indexOf("a:" + id) : -1;
-      apply(`attività ${saved.name} eliminata`, (d) => { const x = findIn(d.activities, id); if (x) unplace(d, x); });
-      saved.files.forEach((f) => scheduleDelete(f.path));
-      return () => apply(`attività ${saved.name} ripristinata`, (d) => {
-        if (findIn(d.activities, id)) return;
-        const x = clone(saved);
-        if (x.group && !findIn(d.groups, x.group)) x.group = "";
-        d.activities.splice(Math.min(idx, d.activities.length), 0, x);
-        const a = areaOf(d, x.area);
-        if (a && !x.group) a.order.splice(pos >= 0 ? Math.min(pos, a.order.length) : a.order.length, 0, "a:" + id);
-        fixOrder(d);
+      const z = { id: newId("z"), kind: "activity", from: "", item: saved, archivedAt: new Date().toISOString(), reason: "deleted" };
+      apply(`attività ${saved.name} archiviata`, (d) => {
+        const x = findIn(d.activities, id);
+        if (!x) return;
+        z.item = clone(x);            // la versione più recente (anche con le modifiche arrivate dalle chat)
+        unplace(d, x);
+        archiveIn(d, z);
       });
+      return () => Store.restore(z.id);
     },
-    setActivityStatus(id, s) {
+    /** stato: todo | doing | done; per "done" si può dire se è sospesa ("paused") o terminata ("ended") */
+    setActivityStatus(id, s, doneKind) {
       if (!STATUSES.includes(s)) return;
-      apply(`attività ${id} → ${s}`, (d) => { const x = findIn(d.activities, id); if (x) x.status = s; });
+      const k = s === "done" && DONE_KINDS.includes(doneKind) ? doneKind : null;
+      apply(`attività ${id} → ${k || s}`, (d) => {
+        const x = findIn(d.activities, id);
+        if (!x) return;
+        x.status = s;
+        if (k) x.doneKind = k;
+      });
     },
     setNote(id, text) {
       // le note scritte di seguito diventano un'unica operazione in coda
@@ -588,9 +649,12 @@
       const p = { ...patch };
       if (typeof p.text === "string") { p.text = p.text.trim(); if (!p.text) delete p.text; }
       const label = "done" in p ? (p.done ? `spuntato in ${sub}` : `riaperto in ${sub}`) : `modificato in ${sub}`;
+      if ("done" in p && p.done) p.doneAt ??= today();   // quando è stato completato (serve all'archivio)
       apply(label, (d) => {
         const x = findIn(box(d, actId)?.[sub], itemId);
-        if (x) Object.assign(x, p);
+        if (!x) return;
+        Object.assign(x, p);
+        if ("done" in p && !p.done) delete x.doneAt;
       });
     },
     removeSub(actId, sub, itemId) {
@@ -598,24 +662,28 @@
       const a = data && box(data, actId);
       const idx = a ? a[sub].findIndex((x) => x.id === itemId) : -1;
       if (idx < 0) return () => {};
-      const saved = clone(a[sub][idx]);
-      const linkedFrom = sub === "files" ? a.log.filter((e) => e.files?.includes(itemId)).map((e) => e.id) : [];
-      apply(`eliminato da ${sub}`, (d) => {
-        const x = box(d, actId);
-        if (!x) return;
-        x[sub] = x[sub].filter((y) => y.id !== itemId);
-        // un file tolto sparisce anche dalle voci del diario che lo allegavano
-        if (sub === "files") x.log.forEach((e) => { if (e.files?.includes(itemId)) e.files = e.files.filter((f) => f !== itemId); });
+      return archiveSub(actId, sub, itemId, "deleted");
+    },
+    /** una decisione non più valida: va nell'archivio come "superata" */
+    supersedeDecision(actId, itemId) { return archiveSub(actId || "", "decisions", itemId, "superseded"); },
+
+    // ---------- archivio ----------
+    restore(archiveId) {
+      const z = data && findIn(data.archive, archiveId);
+      if (!z || !canRestore(data, z)) return false;
+      apply(z.kind === "activity" ? `attività ${z.item.name} ripristinata` : `ripristinato in ${z.kind}`, (d) => {
+        const y = findIn(d.archive, archiveId);
+        if (y && restoreIn(d, y)) d.archive = d.archive.filter((w) => w.id !== archiveId);
       });
-      if (sub === "files") scheduleDelete(saved.path);
-      return () => {
-        if (sub === "files" && saved.path) pendingDeletes.delete(saved.path);
-        apply(`ripristinato in ${sub}`, (d) => {
-          const x = box(d, actId);
-          if (x && !findIn(x[sub], itemId)) x[sub].splice(Math.min(idx, x[sub].length), 0, clone(saved));
-          if (x && sub === "files") linkedFrom.forEach((eid) => { const e = findIn(x.log, eid); if (e && !e.files.includes(itemId)) e.files.push(itemId); });
-        });
-      };
+      return true;
+    },
+    /** elimina per sempre dall'archivio (i file caricati vengono tolti anche dal repo) */
+    purge(archiveId) {
+      const z = data && findIn(data.archive, archiveId);
+      if (!z) return;
+      apply("eliminato dall'archivio", (d) => { d.archive = d.archive.filter((w) => w.id !== archiveId); });
+      const paths = z.kind === "files" ? [z.item.path] : z.kind === "activity" ? (z.item.files || []).map((f) => f.path) : [];
+      paths.forEach(scheduleDelete);
     },
 
     async uploadFiles(actId, fileList) {

@@ -2,9 +2,10 @@
  * ui.js — INTERFACCIA (di competenza di Claude in VS Code).
  *
  * Due viste:
- *   - Scrivania (#/): Verso il lancio (traguardi), Priorità (per urgenza o per traguardo),
- *     le tre aree (App, Contenuti, Commerciale) con gruppi e attività, In comune.
- *   - Pagina attività (#/a/<id>): task a sinistra, file al centro, decisioni / da decidere / note a destra.
+ *   - Scrivania (#/): Timeline, Diario del progetto, Da decidere / Da fare / Parcheggio idee,
+ *     le tre aree (App, Contenuti, Commerciale) con gruppi e attività, Archivio (richiudibile).
+ *   - Pagina attività (#/a/<id>): diario a sinistra, file al centro, decisioni / da decidere / da fare / note a destra.
+ * Diario e Da decidere: su Mac scorrono dentro la sezione, su iPhone sono paginati (‹ 1 di 3 ›).
  *
  * Contratto: window.UI = { mount(rootEl, store), render(data, status) }.
  * I dati si leggono e si modificano tramite window.Model (js/ui/model.js), che usa solo le azioni di window.Store.
@@ -20,7 +21,10 @@
   let shownNoteFor = null;       // per non sovrascrivere le note mentre si scrive
   let deskScroll = 0;
   let mobileArea = "app";
-  let feedExpanded = false;
+  const pages = { feed: 0, open: 0, archive: 0 };   // pagina corrente (solo su iPhone)
+  const phoneMq = window.matchMedia("(max-width: 700px)");
+  const isPhone = () => phoneMq.matches;
+  let archFilter = "all";
   let quickAct = "";             // ultima attività scelta nell'annotazione veloce ("" = In comune)
   let pendingFiles = [];         // allegati scelti nel composer del diario, non ancora caricati
   let prioMode = "urgency";      // urgency | milestone
@@ -57,14 +61,19 @@
   const LAUNCH = Model.LAUNCH;
   const areaById = (id) => AREAS.find((a) => a.id === id);
   const PRI = { alta: { label: "Alta", rank: 0, bang: "!!!" }, media: { label: "Media", rank: 1, bang: "!!" }, bassa: { label: "Bassa", rank: 2, bang: "!" } };
-  const STATUS = { todo: "Da fare", doing: "In corso", done: "Fatto" };
+  // stato di un'attività: nei dati todo / doing / done (+ doneKind "paused" | "ended")
+  const PHASES = {
+    todo: { label: "Da fare", tip: "Da fare: non ancora iniziata" },
+    doing: { label: "Attiva", tip: "Attiva: ci stiamo lavorando" },
+    paused: { label: "Sospesa", tip: "Sospesa: trattata, siamo passati oltre, ma potremmo tornarci" },
+    ended: { label: "Terminata", tip: "Terminata: chiusa, non ci si torna" },
+  };
   const LISTS = [
     { key: "tasks", title: "Task generali", placeholder: "Nuovo task generale", empty: "Nessun task generale." },
     { key: "open", title: "Punti da definire", placeholder: "Nuovo punto da definire", empty: "Niente da definire." },
     { key: "ideas", title: "Idee", placeholder: "Nuova idea", empty: "Ancora nessuna idea." },
   ];
 
-  const statusOf = (a) => a.status || "todo";
   let pendingRoute = false;     // link diretto a un'attività aperto prima che arrivino i dati
   let noteTimer = null;
   function flushNote() {
@@ -107,9 +116,58 @@
     expand: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
     person: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
     spark: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/><path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></svg>',
+    ring: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/></svg>',
+    live: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="live-halo" cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.5" fill="currentColor" stroke="none"/></svg>',
+    resume: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 3.8v3.6h-3.6"/><path d="M8.6 12.3l2.3 2.3 4.4-4.5"/></svg>',
+    ended: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="currentColor" stroke="none"/><path class="tick" d="M8.2 12.3l2.6 2.6 5-5.1"/></svg>',
+    archive: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="4.5" rx="1.2"/><path d="M5 8.5V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5M10 12.5h4"/></svg>',
+    restore: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.2 3.8v3.6h3.6"/></svg>',
     hybrid: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.5"/><path d="M2 20a6 6 0 0 1 10.5-4"/><path d="M17 9l1.2 3.3 3.3 1.2-3.3 1.2L17 18l-1.2-3.3-3.3-1.2 3.3-1.2L17 9Z"/></svg>',
   };
   const OWNER_ICON = { Andrea: ICON.person, Agente: ICON.spark, Ibrido: ICON.hybrid };
+  const PHASE_ICON = { todo: ICON.ring, doing: ICON.live, paused: ICON.resume, ended: ICON.ended };
+  /**
+   * controllo dello stato: Da fare · Attiva · [Sospesa | Terminata]
+   * Sospesa e Terminata condividono l'ultimo posto: quella scelta è grande, l'altra diventa una piccola icona.
+   * compact (card delle attività): solo lo stato scelto mostra il nome, gli altri sono icone.
+   */
+  function phaseControl(act, compact = false) {
+    const cur = Model.phase(act);
+    const bigOfPair = cur === "ended" ? "ended" : "paused";
+    const btn = (k) => {
+      const on = cur === k;
+      const label = compact ? on : k === "todo" || k === "doing" || k === bigOfPair;
+      return `<button type="button" role="radio" aria-checked="${on}" class="ph ${k} ${on ? "on" : ""} ${label ? "" : "mini"}"
+        data-action="phase" data-id="${esc(act.id)}" data-value="${k}" title="${PHASES[k].tip}" aria-label="${PHASES[k].label}">
+        <span class="ph-ico">${PHASE_ICON[k]}</span>${label ? `<span class="ph-label">${PHASES[k].label}</span>` : ""}</button>`;
+    };
+    return `<div class="phase ${compact ? "compact" : ""}" role="radiogroup" aria-label="Stato di ${esc(act.name)}">
+      ${btn("todo")}${btn("doing")}<span class="ph-pair">${btn("paused")}${btn("ended")}</span>
+    </div>`;
+  }
+  /** paginazione su iPhone: ritorna gli elementi della pagina corrente e disegna ‹ 1 di 3 › */
+  function paginate(key, items, per, pagerSel) {
+    const pager = $(pagerSel);
+    if (!isPhone() || items.length <= per) {
+      pages[key] = 0;
+      pager.innerHTML = "";
+      return items;
+    }
+    const n = Math.ceil(items.length / per);
+    pages[key] = Math.min(Math.max(pages[key], 0), n - 1);
+    const p = pages[key];
+    pager.innerHTML = `<div class="pager">
+      <button type="button" data-action="page" data-key="${key}" data-value="-1" aria-label="Pagina precedente" ${p === 0 ? "disabled" : ""}>${ICON.back}</button>
+      <span>${p + 1} di ${n}</span>
+      <button type="button" data-action="page" data-key="${key}" data-value="1" aria-label="Pagina successiva" ${p === n - 1 ? "disabled" : ""}>${ICON.chevron}</button>
+    </div>`;
+    return items.slice(p * per, p * per + per);
+  }
+  /** sfumatura in fondo alle sezioni che scorrono, finché c'è altro da vedere */
+  function updateFade(el) {
+    if (!el) return;
+    el.classList.toggle("fade", !isPhone() && el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+  }
   const ownerChip = (o) => `<span class="owner ${esc(o).toLowerCase()}">${OWNER_ICON[o] || ""}${esc(o)}</span>`;
   const radioSeg = (name, options, checked) => options.map(([v, l, icon = ""]) =>
     `<label class="rseg-opt"><input type="radio" name="${name}" value="${esc(v)}" ${v === checked ? "checked" : ""}><span>${icon}${esc(l)}</span></label>`).join("");
@@ -179,8 +237,8 @@
               </div>
             </form>
             <div id="prio-filter" class="chips" role="tablist" aria-label="Filtra per area"></div>
-            <ol id="feed" class="feed"></ol>
-            <button id="feed-more" class="more-btn" data-action="feed-more" hidden></button>
+            <ol id="feed" class="feed scrollbox"></ol>
+            <div id="feed-pager"></div>
           </section>
 
           <div class="hub-side">
@@ -190,7 +248,8 @@
                 <span id="open-count" class="count"></span>
               </div>
               <p class="card-sub">I punti aperti che bloccano l'avanzamento, generali e delle attività.</p>
-              <ul id="open-list" class="rows"></ul>
+              <ul id="open-list" class="rows scrollbox"></ul>
+              <div id="open-pager"></div>
               <form class="add add-wrap" data-kind="hub-open" autocomplete="off">
                 <span class="add-icon">${ICON.plus}</span>
                 <input name="text" placeholder="Nuovo punto da decidere" enterkeyhint="done" aria-label="Nuovo punto da decidere">
@@ -239,6 +298,16 @@
               </div>
             </section>`).join("")}
         </div>
+
+        <details class="card archive-card" id="archive-box">
+          <summary><span class="h-icon">${ICON.archive}</span><b>Archivio</b><span id="archive-count" class="count"></span><span class="sum-chev">${ICON.chevron}</span></summary>
+          <div class="archive-inner">
+            <p class="card-sub">Task completati, punti decisi, decisioni superate ed elementi eliminati. Niente si perde: da qui puoi sempre ripristinare.</p>
+            <div id="archive-filter" class="chips" role="tablist" aria-label="Filtra l'archivio"></div>
+            <ul id="archive-list" class="rows archive-list scrollbox"></ul>
+            <div id="archive-pager"></div>
+          </div>
+        </details>
       </div>
 
       <!-- ================= PAGINA ATTIVITÀ ================= -->
@@ -258,7 +327,7 @@
 
         <div class="facts">
           <div class="fact"><span class="fact-k">Chi se ne occupa</span><div id="p-owner" class="seg full" role="radiogroup" aria-label="Chi se ne occupa"></div></div>
-          <div class="fact"><span class="fact-k">Stato</span><div id="p-status" class="seg full" role="radiogroup" aria-label="Stato"></div></div>
+          <div class="fact"><span class="fact-k">Stato</span><div id="p-status"></div></div>
           <div class="fact"><span class="fact-k">Orizzonte</span><p id="p-until" class="fact-v"></p></div>
         </div>
 
@@ -343,7 +412,9 @@
             <label id="sheet-ms-wrap" class="f-row"><span>Traguardo</span><select id="sheet-ms" class="select-input"></select></label>
             <label id="sheet-date-wrap" class="f-row"><span id="sheet-date-label">Data</span><input id="sheet-date" type="date" class="date-input"></label>
           </div>
+          <button type="button" data-action="sheet-supersede" id="sheet-supersede" class="plain-btn">${ICON.archive} Segna come superata</button>
           <button type="button" data-action="sheet-delete" class="danger-btn">Elimina</button>
+          <p class="f-note center">Quello che elimini va nell'Archivio, in fondo alla scrivania: puoi ripristinarlo quando vuoi.</p>
         </form>
       </dialog>
 
@@ -476,6 +547,9 @@
       e.target.value = "";
       renderPending();
     });
+    for (const sel of ["#feed", "#open-list", "#archive-list"]) $(sel).addEventListener("scroll", (e) => updateFade(e.target), { passive: true });
+    $("#archive-box").addEventListener("toggle", () => renderArchive());
+    phoneMq.addEventListener("change", () => render(lastData, lastStatus));
     window.addEventListener("hashchange", route);
 
     route();
@@ -529,14 +603,31 @@
     switch (action) {
       case "open-activity": goActivity(id); break;
       case "go-desk": goDesk(); break;
-      case "status":
-        if (!current) break;
-        Model.setStatus(current, value);
+      case "phase": if (id) Model.setPhase(id, value); break;
+      case "page": {
+        pages[t.dataset.key] += Number(value);
+        if (t.dataset.key === "feed") renderJournal(lastData);
+        else if (t.dataset.key === "open") renderOpen(lastData);
+        else renderArchive();
+        const sec = t.closest(".card");
+        if (sec && sec.getBoundingClientRect().top < 0) sec.scrollIntoView({ block: "start", behavior: "smooth" });
         break;
+      }
+      case "arch-filter": archFilter = value; pages.archive = 0; renderArchive(); break;
+      case "restore": restoreFromArchive(t.dataset.key); break;
+      case "purge":
+        if (confirm("Eliminare per sempre questo elemento? Non si potrà più ripristinare.")) { Model.purge(id); showToast("Eliminato per sempre"); }
+        break;
+      case "sheet-supersede": {
+        const ed = editing;
+        editing = null;
+        $("#sheet").close("cancel");
+        if (ed) showUndo("Decisione superata: è nell'Archivio", Model.supersedeDecision(ed.kind === "ddec" ? ed.a : "", ed.id));
+        break;
+      }
       case "owner": if (current) Model.setOwner(current, value); break;
       case "milestone": Model.clickMilestone(id); break;
       case "area": mobileArea = value; renderAreas(); break;
-      case "feed-more": feedExpanded = !feedExpanded; renderJournal(lastData); break;
       case "log-detail": {
         const ta = $("#log-form").detail;
         ta.hidden = !ta.hidden;
@@ -546,7 +637,7 @@
       }
       case "unpend": pendingFiles.splice(Number(t.dataset.i), 1); renderPending(); break;
       case "prio-mode": prioMode = value; prioExpanded = false; renderPriorities(lastData); break;
-      case "prio-filter": prioFilter = value; feedExpanded = false; renderJournal(lastData); break;
+      case "prio-filter": prioFilter = value; pages.feed = 0; $("#feed").scrollTop = 0; renderJournal(lastData); break;
       case "prio-more": prioExpanded = !prioExpanded; renderPriorities(lastData); break;
       case "new-activity": openActSheet(null, value, t.dataset.group || ""); break;
       case "new-group": openGroupSheet(null, value); break;
@@ -638,7 +729,7 @@
   }
 
   function remove({ kind, list, a, id }) {
-    let undo, msg = "Elemento eliminato";
+    let undo, msg = "Eliminato";
     if (kind === "real") undo = store.removeItem(list, id);
     else if (kind === "decision") { undo = store.removeDecision(id); msg = "Decisione eliminata"; }
     else if (kind === "dtask") { undo = Model.removeTask(a, id); msg = "Task eliminato"; }
@@ -646,7 +737,7 @@
     else if (kind === "ddec") { undo = Model.removeDecision(a, id); msg = "Decisione eliminata"; }
     else if (kind === "dfile") { undo = Model.removeFile(a, id); msg = "File rimosso"; }
     else if (kind === "dlog") { undo = Model.removeLog(a, id); msg = "Voce del diario eliminata"; }
-    if (undo) showUndo(msg, undo);
+    if (undo) showUndo(`${msg}: è nell'Archivio`, undo);
   }
 
   function deleteActivity(id) {
@@ -655,7 +746,7 @@
     if (current === id) flushNote();
     const undo = Model.removeActivity(id);
     if (current === id) goDesk();
-    showUndo(`«${act.name}» eliminata`, undo);
+    showUndo(`«${act.name}» spostata nell'Archivio`, undo);
   }
 
   // ---------- verso il lancio ----------
@@ -808,7 +899,7 @@
       ? `<button class="ctx ${e.act.area}" data-action="open-activity" data-id="${esc(e.act.id)}"><i></i>${esc(e.act.name)}</button>`
       : "";
     return `<li class="log-entry">
-      <span class="log-dot"></span>
+      <span class="log-mark" title="Fatto">${ICON.check}</span>
       <div class="log-body">
         <div class="log-top">
           <span class="log-text" tabindex="0" role="button" data-action="edit" ${attrs}>${esc(e.text)}</span>
@@ -838,10 +929,10 @@
       ? `<button class="ctx ${e.act.area}" data-action="open-activity" data-id="${esc(e.act.id)}"><i></i>${esc(e.act.name)}</button>`
       : "";
     return `<li class="log-entry dec">
-      <span class="log-dot"></span>
+      <span class="log-mark dec" title="Decisione">${ICON.gavel}</span>
       <div class="log-body">
         <div class="log-top">
-          <span class="log-text" tabindex="0" role="button" data-action="edit" ${attrs}><b class="dec-tag">Deciso</b> ${esc(e.text)}</span>
+          <span class="log-text" tabindex="0" role="button" data-action="edit" ${attrs}><span class="sr-only">Decisione: </span>${esc(e.text)}</span>
           <button class="del" data-action="delete" ${attrs} aria-label="Elimina decisione">${ICON.x}</button>
         </div>
         ${where ? `<div class="log-meta">${where}</div>` : ""}
@@ -864,9 +955,8 @@
     const week = all.filter((e) => daysFromToday(e.date) > -7);
     const nDone = week.filter((e) => e.type === "log").length, nDec = week.length - nDone;
     $("#journal-count").textContent = week.length ? `questa settimana: ${nDone} ${nDone === 1 ? "fatto" : "fatti"} · ${nDec} ${nDec === 1 ? "decisione" : "decisioni"}` : "";
-    // di base le ultime 3 giornate di lavoro, poi "Mostra tutto"
-    const days = [...new Set(list.map((e) => e.date))];
-    const shown = feedExpanded ? list : list.filter((e) => days.indexOf(e.date) < 3);
+    // su Mac tutto, dentro la sezione che scorre; su iPhone a pagine
+    const shown = paginate("feed", list, 8, "#feed-pager");
     let html = "", day = null;
     for (const e of shown) {
       if (e.date !== day) {
@@ -879,9 +969,7 @@
       html += e.type === "dec" ? decisionEntry(e) : logEntry(e, { context: true });
     }
     $("#feed").innerHTML = html || `<li class="empty feed-empty">${all.length ? "Niente in questa area." : "Ancora niente. Annota qui cosa hai fatto o deciso, oppure a fine sessione chiedi a Claude di aggiornare la dashboard."}</li>`;
-    const more = $("#feed-more");
-    more.hidden = shown.length >= list.length && !feedExpanded;
-    more.textContent = feedExpanded ? "Mostra solo le ultime giornate" : `Mostra tutto (${list.length})`;
+    updateFade($("#feed"));
     const dateIn = $("#quick-log").date;
     if (!dateIn.value) dateIn.value = todayISO();
   }
@@ -909,7 +997,8 @@
       ...Model.activities().flatMap((act) => (act.open || []).filter((o) => !o.done).map((o) => ({ ...o, kind: "dopen", a: act.id, act }))),
     ];
     $("#open-count").textContent = items.length ? String(items.length) : "";
-    $("#open-list").innerHTML = items.length ? items.map((o) => {
+    const shown = paginate("open", items, 5, "#open-pager");
+    $("#open-list").innerHTML = items.length ? shown.map((o) => {
       const attrs = `data-kind="${o.kind}" data-list="${o.list || ""}" data-a="${esc(o.a)}" data-id="${esc(o.id)}"`;
       const where = o.act
         ? `<button class="ctx ${o.act.area}" data-action="open-activity" data-id="${esc(o.act.id)}"><i></i>${esc(o.act.name)}</button>`
@@ -923,12 +1012,13 @@
         <button class="del" data-action="delete" ${attrs} aria-label="Elimina">${ICON.x}</button>
       </li>`;
     }).join("") : `<li class="empty">Nessun punto aperto. Niente blocca l'avanzamento.</li>`;
+    updateFade($("#open-list"));
   }
 
   function renderIdeas(data) {
-    const items = data.ideas;
-    $("#count-ideas").textContent = items.length ? String(items.filter((x) => !x.done).length) : "";
-    $("#list-ideas").innerHTML = items.length ? items.map((it) => simpleRow(it, { kind: "real", list: "ideas" })).join("") : `<li class="empty">Ancora nessuna idea.</li>`;
+    const items = data.ideas.filter((x) => !x.done);   // quelle spuntate vanno nell'Archivio
+    $("#count-ideas").textContent = items.length ? String(items.length) : "";
+    $("#list-ideas").innerHTML = items.length ? items.map((it) => simpleRow(it, { kind: "real", list: "ideas" })).join("") : `<li class="empty">Nessuna idea parcheggiata.</li>`;
   }
 
   function submitQuickLog() {
@@ -1025,10 +1115,67 @@
     more.textContent = prioExpanded ? "Mostra meno" : `Mostra tutte (${list.length})`;
   }
 
+  // ---------- archivio ----------
+  const ARCH = {
+    tasks: { icon: ICON.check, done: "Task completato", deleted: "Task eliminato" },
+    open: { icon: ICON.question, done: "Punto deciso", deleted: "Punto eliminato" },
+    ideas: { icon: ICON.spark, done: "Idea spuntata", deleted: "Idea eliminata" },
+    decisions: { icon: ICON.gavel, superseded: "Decisione superata", deleted: "Decisione eliminata" },
+    log: { icon: ICON.book, deleted: "Voce di diario eliminata" },
+    files: { icon: ICON.file, deleted: "File eliminato" },
+    activity: { icon: ICON.folder, deleted: "Attività eliminata" },
+  };
+  const REASON = { done: "Completato", superseded: "Superata", deleted: "Eliminato" };
+  function renderArchive() {
+    const all = Model.archive();
+    $("#archive-count").textContent = all.length ? String(all.length) : "";
+    if (!$("#archive-box").open) return;      // chiuso: basta il numero
+    const n = (r) => all.filter((x) => x.reason === r).length;
+    $("#archive-filter").innerHTML = [["all", "Tutto", all.length], ["done", "Completati", n("done")], ["superseded", "Superate", n("superseded")], ["deleted", "Eliminati", n("deleted")]]
+      .filter(([k, , c]) => k === "all" || c)
+      .map(([k, l, c]) => `<button role="tab" aria-selected="${archFilter === k}" class="chip ${archFilter === k ? "on" : ""}" data-action="arch-filter" data-value="${k}">${l}<small>${c}</small></button>`).join("");
+    const list = archFilter === "all" ? all : all.filter((x) => x.reason === archFilter);
+    const shown = paginate("archive", list, 8, "#archive-pager");
+    $("#archive-list").innerHTML = list.length ? shown.map((x) => {
+      const k = ARCH[x.kind] || { icon: ICON.archive };
+      const text = x.kind === "files" || x.kind === "activity" ? x.item.name : x.item.text;
+      const live = x.act && x.kind !== "activity" && Model.activity(x.act.id);
+      const where = x.kind === "activity"
+        ? `<span class="ctx ${x.item.area}"><i></i>${esc(areaById(x.item.area)?.name || "")}</span>`
+        : x.act
+          ? live ? `<button class="ctx ${x.act.area}" data-action="open-activity" data-id="${esc(x.act.id)}"><i></i>${esc(x.act.name)}</button>`
+            : `<span class="ctx ${x.act.area}" title="Anche l'attività è nell'archivio"><i></i>${esc(x.act.name)}</span>`
+          : `<span class="ctx common"><i></i>In comune</span>`;
+      return `<li class="row arch ${x.reason}">
+        <span class="arch-ico">${k.icon}</span>
+        <div class="row-main">
+          <span class="row-text">${esc(text)}</span>
+          <span class="row-meta"><span class="arch-type">${k[x.reason] || REASON[x.reason] || ""}</span>${where}${x.date ? `<time datetime="${esc(x.date)}">${fmtDate(x.date)}</time>` : ""}</span>
+        </div>
+        <button class="restore-btn" data-action="restore" data-key="${esc(x.key)}" ${x.canRestore ? "" : `disabled title="Ripristina prima l'attività «${esc(x.act?.name || "")}»"`}>${ICON.restore}<span>Ripristina</span></button>
+        ${x.archiveId ? `<button class="del purge" data-action="purge" data-id="${esc(x.archiveId)}" aria-label="Elimina per sempre" title="Elimina per sempre">${ICON.trash}</button>` : `<span class="purge-slot"></span>`}
+      </li>`;
+    }).join("") : `<li class="empty">${all.length ? "Niente in questo filtro." : "L'archivio è vuoto. Qui finiscono le cose completate, superate o eliminate."}</li>`;
+    updateFade($("#archive-list"));
+  }
+  function restoreFromArchive(key) {
+    const x = Model.archive().find((y) => y.key === key);
+    if (!x) return;
+    const label = ARCH[x.kind]?.[x.reason] || "Elemento";
+    if (x.archiveId) {
+      if (!Model.restore(x.archiveId)) { showToast(`Ripristina prima l'attività «${x.act?.name || ""}»`); return; }
+    } else if (!x.act) {
+      store.toggleItem(x.kind, x.item.id);
+    } else if (x.kind === "tasks") Model.toggleTask(x.act.id, x.item.id);
+    else if (x.kind === "open") Model.toggleOpen(x.act.id, x.item.id);
+    const where = x.kind === "activity" ? ` in ${areaById(x.item.area)?.name}` : x.act ? ` in «${x.act.name}»` : "";
+    showToast(`${label.split(" ")[0]} ripristinat${x.kind === "activity" || x.kind === "decisions" || x.kind === "ideas" ? "a" : x.kind === "log" ? "a" : "o"}${where}`);
+  }
+
   // ---------- aree ----------
   function activityRow(act) {
     const d = Model.get(act.id);
-    const st = statusOf(act);
+    const st = Model.phase(act);
     const open = d.tasks.filter((t) => !t.done).map((t) => ({ ...t, area: act.area }));
     const top = sortByUrgency(open)[0];
     const urgent = open.some((t) => tierOf(t) <= 1);
@@ -1040,15 +1187,15 @@
     if (d.files.length) tags.push(`<span>${d.files.length} file</span>`);
     if (openPts) tags.push(`<span>${openPts} da decidere</span>`);
     if (until) tags.push(`<span class="until" title="Si chiude con questo traguardo">${ICON.flag}${esc(until.name)}</span>`);
-    if (st !== "todo") tags.push(`<span class="st ${st}">${STATUS[st]}</span>`);
-    return `<button class="activity ${st}" data-action="open-activity" data-id="${esc(act.id)}">
+    return `<div class="activity ${st}">
+      <button class="act-open" data-action="open-activity" data-id="${esc(act.id)}" aria-label="Apri ${esc(act.name)}"></button>
       <span class="act-body">
         <span class="act-name">${esc(act.name)}${urgent ? '<i class="urgent-dot" title="Ha task urgenti"></i>' : ""}</span>
         ${last ? `<span class="act-meta"><b class="act-when">${relDay(last.date)}</b> ${esc(last.text)}</span>` : act.hint ? `<span class="act-meta">${esc(act.hint)}</span>` : ""}
-        <span class="act-tags">${tags.join("")}</span>
+        <span class="act-foot"><span class="act-tags">${tags.join("")}</span>${phaseControl(act, true)}</span>
       </span>
       <span class="act-go">${ICON.chevron}</span>
-    </button>`;
+    </div>`;
   }
 
   function renderAreas() {
@@ -1094,7 +1241,6 @@
     }
     const area = areaById(act.area);
     const d = Model.get(act.id);
-    const st = statusOf(act);
     $("#p-icon").className = `area-icon big ${area.id}`;
     $("#p-icon").innerHTML = ICON[area.icon];
     $("#p-crumb").innerHTML = `<span class="crumb-area ${area.id}">${area.name}</span>${act.group ? ` › ${esc(Model.group(act.group)?.name || "")}` : ""}`;
@@ -1105,8 +1251,7 @@
 
     $("#p-owner").innerHTML = Model.OWNERS.map((o) =>
       `<button role="radio" aria-checked="${act.owner === o}" class="${act.owner === o ? "on" : ""}" data-action="owner" data-value="${o}">${OWNER_ICON[o]}${o}</button>`).join("");
-    $("#p-status").innerHTML = Object.entries(STATUS).map(([k, l]) =>
-      `<button role="radio" aria-checked="${st === k}" class="${st === k ? "on " + k : ""}" data-action="status" data-value="${k}">${l}</button>`).join("");
+    $("#p-status").innerHTML = phaseControl(act);
     const until = act.until ? Model.milestone(act.until) : null;
     $("#p-until").innerHTML = until
       ? `${ICON.flag}<span>Si chiude con <b>${esc(until.name)}</b>${Model.isReached(until.id) ? " · raggiunto" : ""}</span>`
@@ -1184,6 +1329,7 @@
     $("#sheet-text").value = item.text;
     const isTask = ref.kind === "dtask", isLog = ref.kind === "dlog", isDec = ref.kind === "decision" || ref.kind === "ddec" || isLog;
     $("#sheet-detail").hidden = !isLog;
+    $("#sheet-supersede").hidden = !(ref.kind === "decision" || ref.kind === "ddec");
     $("#sheet-detail").value = isLog ? item.detail || "" : "";
     $("#sheet-pri-wrap").hidden = !isTask;
     $("#sheet-ms-wrap").hidden = !isTask;
@@ -1512,6 +1658,7 @@
       renderIdeas(data);
       fillActSelects();
       renderAreas();
+      renderArchive();
     } else {
       renderActivity();
     }

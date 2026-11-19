@@ -39,7 +39,10 @@ window.UI = {
     `addDecision/editDecision/removeDecision`;
   - traguardi: `setProgress(areaId, n)`, `setLaunched(bool)`, `setMilestones(areaId, [{id?, name}])`;
   - gruppi: `addGroup`, `renameGroup`, `removeGroup`, `moveBlock(areaId, key, dir)`;
-  - attività: `addActivity`, `editActivity(id, patch)`, `removeActivity`, `setActivityStatus`, `setNote`;
+  - attività: `addActivity`, `editActivity(id, patch)`, `removeActivity`, `setActivityStatus(id, status, doneKind?)`, `setNote`
+    (stato nei dati: `todo` Da fare / `doing` Attiva / `done` + `doneKind` `paused` Sospesa o `ended` Terminata);
+  - archivio: le `remove…` non cancellano, spostano in `data.archive`; `supersedeDecision(actId, id)`,
+    `restore(archiveId)`, `purge(archiveId)` (elimina per sempre);
   - dentro un'attività: `addSub/editSub/removeSub(id, sub, …)` (`sub` = `"log"` | `"tasks"` | `"open"` | `"decisions"` | `"files"`;
     con `id` = `""` si agisce sul diario e sui file in comune),
     `uploadFiles(id, FileList) → Promise<{ok, errors}>`, `fileUrl(file)`;
@@ -64,6 +67,11 @@ La dashboard è una "scrivania" che ricalca la lavagna del progetto (stile appro
   veloce (Fatto / Decisione). È quello che le chat di Claude aggiornano a fine sessione.
 - Accanto: **Da decidere** in evidenza (punti aperti generali e delle attività), **Da fare** piccolo
   (task generali e delle attività in un'unica lista), **Parcheggio idee** richiudibile.
+  Diario e Da decidere: su Mac altezza massima e scorrimento interno con sfumatura; su iPhone pagine ‹ 1 di 3 ›.
+- Diario: il colore è dell'area (sull'etichetta dell'attività), il tipo di voce è un'icona (spunta = fatto, martelletto = decisione).
+- **Stato delle attività**: controllo a segmenti Da fare (cerchio) · Attiva (pallino che pulsa) · Sospesa (spunta con freccia) |
+  Terminata (spunta piena), con Sospesa e Terminata nello stesso posto; nelle card e nella pagina dell'attività.
+- **Archivio** in fondo, discreto e richiudibile: completati, superate, eliminati, con "Ripristina".
 - **Tre aree affiancate** sotto (App, Contenuti, Commerciale) con gruppi (intestazione a cartella, modificabili)
   e attività; pulsanti "+ Attività" e "+ Gruppo".
 - **Pagina dell'attività** (`#/a/<id>`): chi se ne occupa, stato, orizzonte; diario a sinistra (con dettagli
