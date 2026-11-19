@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T21:27:31.574Z",
+  "updatedAt": "2026-11-19T21:36:27.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -50,7 +50,7 @@
     {
       "id": "content",
       "name": "Contenuti",
-      "progress": 0,
+      "progress": 1,
       "milestones": [
         {
           "id": "m20261119a",
