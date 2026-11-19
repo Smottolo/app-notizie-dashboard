@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T20:44:17.000Z",
+  "updatedAt": "2026-11-19T21:14:48.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -379,13 +379,57 @@
           ],
           "source": "chat",
           "created": 1795038767107
+        },
+        {
+          "id": "l20261119b",
+          "date": "2026-11-19",
+          "text": "Analizzata la Bussola v0.3 e trovati i suoi punti deboli",
+          "detail": "Spiegato il sistema in modo semplice (bloccanti, 12 criteri da 1 a 5, pesi per obiettivo, certezza M/V/S, P, F e classi). Punti deboli trovati: 1) campione di 5 notizie troppo piccolo e scelto da chi vota; 2) criteri che misurano la stessa cosa due volte (F1/F2, V1/V3); 3) manca il costo di un errore; 4) manca la tempestività; 5) R1, V2 e V1 dipendono da testate e riferimento non ancora scelti; 6) contro l'invecchiamento servono dati che uno script raccoglie da solo, più il riscontro dei dati di lettura (stazione 11). Si continua a cercare falle finché il sistema non è quasi perfetto.",
+          "files": [],
+          "source": "chat",
+          "created": 1795122888602
         }
       ],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "t20261119b",
+          "text": "Rivedere le domande del sistema Bussola",
+          "priority": "alta",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795122888602
+        },
+        {
+          "id": "t20261119c",
+          "text": "Dopo le nuove domande: controllare i doppi conteggi tra criteri e fissare testate di R1/V2 e riferimento di Google Trends",
+          "priority": "media",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795122888602
+        }
+      ],
       "open": [
         {
           "id": "o20261119a",
           "text": "Scegliere 3-5 argomenti palestra con il profilo Prototipo della Bussola",
+          "done": true,
+          "doneAt": "2026-11-19"
+        },
+        {
+          "id": "o20261119b",
+          "text": "Pool degli argomenti: con quali criteri (o prompt) categorizzare i contenuti e su quale finestra temporale (30 giorni o altro)",
+          "done": false
+        },
+        {
+          "id": "o20261119c",
+          "text": "Tempestività: come misurarla e se va nella Bussola o nella Selezione notizie",
+          "done": false
+        },
+        {
+          "id": "o20261119d",
+          "text": "Rilevanza: basta V1 + V4 rinominati o serve altro? E deve pesare anche nell'obiettivo Facili?",
           "done": false
         }
       ],
@@ -419,6 +463,26 @@
           "id": "d20261119e",
           "date": "2026-11-19",
           "text": "Bussola = grading degli argomenti; Lente = valutazione delle fonti e dei materiali scelti per raccogliere informazioni (non dei nostri articoli). Insieme scelgono su cosa scrivere e con quali informazioni. La revisione dei nostri articoli sarà un sistema separato, nome da definire"
+        },
+        {
+          "id": "d20261119d",
+          "date": "2026-11-19",
+          "text": "Il sistema di voti e pesi della Bussola resta: è la base per renderla matematica. Le domande invece sono troppo generali e vanno riscritte (se ne occupa Andrea)"
+        },
+        {
+          "id": "d20261119g",
+          "date": "2026-11-19",
+          "text": "Il campione su cui si applica la Bussola non si sceglie più a mano: un sistema legge titoli e contenuti da un database di fonti deciso all'inizio ed espandibile (testate, notiziari, enti pubblici, ogni diffusore rilevante), li categorizza e ne ricava la lista degli argomenti"
+        },
+        {
+          "id": "d20261119h",
+          "date": "2026-11-19",
+          "text": "Il costo di un errore non diventa un criterio della Bussola: si punta sulla prevenzione degli errori"
+        },
+        {
+          "id": "d20261119i",
+          "date": "2026-11-19",
+          "text": "La tempestività entra nel processo: un criterio dice quanta ne serve; se una notizia va trattata subito pesa di più, se è ormai superata si scarta"
         }
       ],
       "files": [
