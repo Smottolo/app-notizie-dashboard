@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T17:36:14.000Z",
+  "updatedAt": "2026-11-19T19:52:26.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -61,12 +61,12 @@
           "name": "Regole editoriali e formati v1"
         },
         {
-          "id": "m-con-2",
-          "name": "Primo articolo"
+          "id": "m20261119b",
+          "name": "Lente v1 (valutazione delle fonti)"
         },
         {
-          "id": "m20261119b",
-          "name": "Lente v1 (grading degli articoli)"
+          "id": "m-con-2",
+          "name": "Primo articolo"
         },
         {
           "id": "m-con-3",
@@ -403,7 +403,7 @@
       "hint": "",
       "until": "",
       "status": "todo",
-      "note": "Il grading degli articoli si chiamerà Lente: criteri da definire quando ci saranno i primi articoli (punto spostato nell'archivio il 19/11).",
+      "note": "La revisione dei nostri articoli sarà un sistema separato dalla Lente (nome da definire): criteri da definire quando ci saranno i primi articoli.",
       "log": [],
       "tasks": [],
       "open": [],
@@ -586,9 +586,9 @@
           "text": "Gli argomenti non si consumano: il file Argomenti è un serbatoio che cresce e a ogni ciclo si valutano solo i nuovi o quelli da rivedere"
         },
         {
-          "id": "d20261119a",
+          "id": "d20261119e",
           "date": "2026-11-19",
-          "text": "Il sistema di grading degli argomenti si chiama Bussola; quello degli articoli si chiamerà Lente"
+          "text": "Bussola = grading degli argomenti; Lente = valutazione delle fonti e dei materiali scelti per raccogliere informazioni (non dei nostri articoli). Insieme scelgono su cosa scrivere e con quali informazioni. La revisione dei nostri articoli sarà un sistema separato, nome da definire"
         }
       ],
       "files": [
@@ -895,6 +895,18 @@
       },
       "archivedAt": "2026-11-19T17:36:14.000Z",
       "reason": "deleted"
+    },
+    {
+      "id": "z20261119s1",
+      "kind": "decisions",
+      "from": "f1",
+      "item": {
+        "id": "d20261119a",
+        "date": "2026-11-19",
+        "text": "Il sistema di grading degli argomenti si chiama Bussola; quello degli articoli si chiamerà Lente"
+      },
+      "archivedAt": "2026-11-19T19:52:26.000Z",
+      "reason": "superseded"
     }
   ]
 }
