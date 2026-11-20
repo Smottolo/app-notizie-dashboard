@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-19T21:42:18.000Z",
+  "updatedAt": "2026-11-20T14:18:42.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -461,7 +461,8 @@
         {
           "id": "o20261119b",
           "text": "Pool degli argomenti: con quali criteri (o prompt) categorizzare i contenuti e su quale finestra temporale (30 giorni o altro)",
-          "done": false
+          "done": true,
+          "doneAt": "2026-11-20"
         },
         {
           "id": "o20261119c",
@@ -524,6 +525,11 @@
           "id": "d20261119i",
           "date": "2026-11-19",
           "text": "La tempestività entra nel processo: un criterio dice quanta ne serve; se una notizia va trattata subito pesa di più, se è ormai superata si scarta"
+        },
+        {
+          "id": "d20261120a",
+          "date": "2026-11-20",
+          "text": "Il pool degli argomenti si costruisce dalle notizie vere: l'AI legge titoli e articoli del periodo (testate, agenzie, enti, titoli dei servizi dei TG dalle loro app), li raggruppa in notizie e argomenti e decide da sola il livello giusto (troppo generico / troppo specifico). Primo pool sugli ultimi 12 mesi, poi aggiornamento mensile. Si parte anche se non è perfetto e si migliora con i test"
         }
       ],
       "files": [
@@ -713,10 +719,20 @@
       "owner": "Ibrido",
       "hint": "Catalogo delle fonti, usato da Bussola e Lente",
       "until": "",
-      "status": "todo",
+      "status": "doing",
       "note": "Le schede di grading degli argomenti raccolgono le fonti trovate (campo fonti_trovate): usarle come base per l'elenco fonti.",
       "log": [],
-      "tasks": [],
+      "tasks": [
+        {
+          "id": "t20261120a",
+          "text": "Creare il pool delle fonti di informazione (testate, agenzie, enti pubblici, TG) da cui la Bussola prende le notizie",
+          "priority": "alta",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795184322314
+        }
+      ],
       "open": [],
       "decisions": [],
       "files": []
