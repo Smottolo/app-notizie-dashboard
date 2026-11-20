@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-20T17:36:42.000Z",
+  "updatedAt": "2026-11-20T17:40:32.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -849,6 +849,51 @@
           "done": true,
           "created": 1795184322314,
           "doneAt": "2026-11-20"
+        },
+        {
+          "id": "t20261120fa",
+          "text": "Preparare le istruzioni per Claude Code per il test, un passo alla volta",
+          "priority": "alta",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795196432937
+        },
+        {
+          "id": "t20261120fb",
+          "text": "Controllare in automatico con Claude Code le 212 fonti (RSS, sitemap, archivio dei 12 mesi, accesso) e segnare quali si possono usare",
+          "priority": "alta",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795196432938
+        },
+        {
+          "id": "t20261120fc",
+          "text": "Test su un mese e circa 30 fonti di rilievo: raccogliere i titoli e dividerli in notizie e argomenti",
+          "priority": "alta",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795196432939
+        },
+        {
+          "id": "t20261120fd",
+          "text": "Valutare il test: quante fonti recuperate, controllo a mano di circa 100 notizie, confronto con i 116 argomenti",
+          "priority": "media",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795196432940
+        },
+        {
+          "id": "t20261120fe",
+          "text": "Se il test regge, allargare il pool a 12 mesi e a tutte le fonti approvate",
+          "priority": "media",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795196432941
         }
       ],
       "open": [
