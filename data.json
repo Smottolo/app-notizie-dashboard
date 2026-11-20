@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-20T14:18:42.000Z",
+  "updatedAt": "2026-11-20T16:59:58.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -705,6 +705,22 @@
       "until": "",
       "status": "todo",
       "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [],
+      "files": []
+    },
+    {
+      "id": "x20261120a",
+      "area": "content",
+      "group": "g20261119a",
+      "name": "Caporedattore (controllo d'insieme)",
+      "owner": "Ibrido",
+      "hint": "Agente sopra la Fabbrica: controlla il mix dei contenuti, trova buchi e superficialità, corregge la rotta",
+      "until": "",
+      "status": "todo",
+      "note": "Non è una stazione: osserva tutta la Fabbrica. Non scrive, fa il punto della situazione (report periodico, come una riunione di redazione) e propone correzioni: cambia l'obiettivo della Bussola, abbassa la soglia per una sezione trascurata, chiede approfondimenti. All'inizio propone e decide Andrea.\nMisure: copertura per sezione rispetto a un obiettivo; concentrazione (quanto spazio prende una sola storia); buchi (notizie coperte da tante testate e non da noi, dalla Selezione notizie); profondità (contesto, fonti indipendenti, approfondimenti vs brevi); ripetizione; equilibrio delle voci in politica.\nServe volume per funzionare. Da prevedere subito: ogni articolo lascia una traccia (sezione, argomento, storia, fonti, formato, contesto), così l'agente trova i dati quando arriva.\nNome alternativo proposto: Timone.",
       "log": [],
       "tasks": [],
       "open": [],
