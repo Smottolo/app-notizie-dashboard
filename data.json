@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-20T17:36:15.000Z",
+  "updatedAt": "2026-11-20T17:36:42.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -819,7 +819,26 @@
       "until": "",
       "status": "doing",
       "note": "Le schede di grading degli argomenti raccolgono le fonti trovate (campo fonti_trovate): usarle come base per l'elenco fonti.",
-      "log": [],
+      "log": [
+        {
+          "id": "l20261120fa",
+          "date": "2026-11-20",
+          "text": "Fatta la lista delle fonti per il pool dei 12 mesi: 212 fonti",
+          "detail": "Foglio ordinabile con nome, id, tipo, argomenti, rilievo, legame politico, formato, accesso, archivio, riuso e link: https://claude.ai/artifact/ELuFAUJMp6YXsPWo81oKw5 . 68 ufficiali, 20 agenzie, 95 testate, 16 tg e radio, 13 altre (servizi di raccolta, social, archivi). Formato, archivio e riuso sono in buona parte ancora da verificare: il controllo automatico delle fonti si fa con Claude Code. Unico servizio a pagamento trovato: l'API di X (si usano i siti e gli RSS degli enti).",
+          "files": [],
+          "source": "chat",
+          "created": 1795196202828
+        },
+        {
+          "id": "l20261120fb",
+          "date": "2026-11-20",
+          "text": "Preparato il piano per raccogliere lo storico dei 12 mesi e costruire il pool",
+          "detail": "Stima: 3-5 milioni di articoli in 12 mesi (10-15 mila al giorno). Per il pool bastano titolo, data, fonte e anteprima: il testo completo serve solo dopo, per gli argomenti scelti. Recupero gratuito: sitemap dei siti, GDELT (dal 2015), Wayback Machine, API degli enti, titoli dei video dei tg. Raccolta e raggruppamento con Claude Code sul Mac; revisione degli argomenti e confronto con i 116 argomenti in chat. Proposto un test su un mese e circa 30 fonti di rilievo.",
+          "files": [],
+          "source": "chat",
+          "created": 1795196202829
+        }
+      ],
       "tasks": [
         {
           "id": "t20261120a",
@@ -827,12 +846,35 @@
           "priority": "alta",
           "due": "",
           "milestone": "",
-          "done": false,
-          "created": 1795184322314
+          "done": true,
+          "created": 1795184322314,
+          "doneAt": "2026-11-20"
         }
       ],
-      "open": [],
-      "decisions": [],
+      "open": [
+        {
+          "id": "o20261120fa",
+          "text": "Approvare il metodo per dividere il pool: primo raggruppamento automatico dei titoli (gratuito, sul Mac), poi Claude rivede i gruppi e dà i nomi agli argomenti",
+          "done": false
+        },
+        {
+          "id": "o20261120fb",
+          "text": "Definire il test: un mese (es. ottobre 2026) su circa 30 fonti di rilievo",
+          "done": false
+        }
+      ],
+      "decisions": [
+        {
+          "id": "d20261120fa",
+          "date": "2026-11-20",
+          "text": "Funzionamento del pool dei 12 mesi: lista delle fonti → studio delle fonti → raccolta dello storico con Claude Code → divisione fatta dall'AI in argomenti, notizie e articoli (con fonte, data, titolo e link, così si vede quante volte e da quante fonti è ripresa ogni notizia). La Bussola interviene solo dopo, sul pool finito"
+        },
+        {
+          "id": "d20261120fb",
+          "date": "2026-11-20",
+          "text": "I giornali a pagamento entrano nel pool solo con le parti pubbliche (titolo, data, anteprima), per contare quanto si parla di una notizia; il testo completo si prende solo da fonti aperte. Giornali regionali: bastano quelli già in lista"
+        }
+      ],
       "files": []
     },
     {
