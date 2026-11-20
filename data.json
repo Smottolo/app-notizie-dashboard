@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-20T16:59:58.000Z",
+  "updatedAt": "2026-11-20T17:36:15.000Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -429,6 +429,35 @@
           "files": [],
           "source": "chat",
           "created": 1795124426925
+        },
+        {
+          "id": "l20261120a",
+          "date": "2026-11-20",
+          "text": "Scritta la Bussola v0.4",
+          "detail": "Tutti i criteri si misurano sullo stesso campione (il pool dalle notizie vere). 13 criteri con domande riscritte come percentuali o conteggi: F1-F7 (nuovo F7 Margine di tempo), R1 Sicurezza legale (unico criterio di rischio, peso basso), V1-V5 (rilevanza V1+V4 misurata sul pool; nuovo V5 Pluralità di visioni e dati). 5 bloccanti (tolto B6). Nuovo obiettivo Di confronto, pesi rifatti, esempio di calcolo rifatto. Aggiunta in cima la sezione \"A cosa serve\": cosa riceve, cosa restituisce (classifica + scheda + pacchetto del pool + stato rispetto allo storico), non è una tantum. Copertura B1 allargata ai grandi fatti internazionali. https://claude.ai/artifact/LVmzvEHGQZRiXECPreXGN3",
+          "files": [],
+          "source": "chat",
+          "created": 1795196175022
+        },
+        {
+          "id": "l20261120b",
+          "date": "2026-11-20",
+          "text": "Scritta la bozza del file di istruzioni per l'agente Bussola",
+          "detail": "Algoritmo dal passo 0 al 10, formato JSON di input e output, glossario con esempi, etichette per ogni notizia (l'AI giudica, lo script calcola), regole di riserva, cosa non fare. Mancano gli esempi completi, da aggiungere dopo la prima prova su un pool reale. Nel progetto: agenti/bussola-agente.md. Creata anche la skill istruzioni-agente-fabbrica per fare lo stesso con ogni stazione.",
+          "files": [
+            "u20261120a"
+          ],
+          "source": "chat",
+          "created": 1795196175022
+        },
+        {
+          "id": "l20261120c",
+          "date": "2026-11-20",
+          "text": "Preparato il prompt per la chat che costruisce il pool dei 12 mesi",
+          "detail": "Contesto del processo, regola tutto gratis, fonti con registrazione solo per le parti pubbliche, copertura Italia più grandi fatti del mondo; passo 1 lista delle fonti con i campi utili alla Bussola, passo 2 piano onesto per la raccolta, passo 3 divisione in notizie e argomenti.",
+          "files": [],
+          "source": "chat",
+          "created": 1795196175022
         }
       ],
       "tasks": [
@@ -438,8 +467,9 @@
           "priority": "alta",
           "due": "",
           "milestone": "",
-          "done": false,
-          "created": 1795122888602
+          "done": true,
+          "created": 1795122888602,
+          "doneAt": "2026-11-20"
         },
         {
           "id": "t20261119c",
@@ -447,8 +477,9 @@
           "priority": "media",
           "due": "",
           "milestone": "",
-          "done": false,
-          "created": 1795122888602
+          "done": true,
+          "created": 1795122888602,
+          "doneAt": "2026-11-20"
         }
       ],
       "open": [
@@ -467,12 +498,14 @@
         {
           "id": "o20261119c",
           "text": "Tempestività: come misurarla e se va nella Bussola o nella Selezione notizie",
-          "done": false
+          "done": true,
+          "doneAt": "2026-11-20"
         },
         {
           "id": "o20261119d",
           "text": "Rilevanza: basta V1 + V4 rinominati o serve altro? E deve pesare anche nell'obiettivo Facili?",
-          "done": false
+          "done": true,
+          "doneAt": "2026-11-20"
         }
       ],
       "decisions": [
@@ -530,6 +563,41 @@
           "id": "d20261120a",
           "date": "2026-11-20",
           "text": "Il pool degli argomenti si costruisce dalle notizie vere: l'AI legge titoli e articoli del periodo (testate, agenzie, enti, titoli dei servizi dei TG dalle loro app), li raggruppa in notizie e argomenti e decide da sola il livello giusto (troppo generico / troppo specifico). Primo pool sugli ultimi 12 mesi, poi aggiornamento mensile. Si parte anche se non è perfetto e si migliora con i test"
+        },
+        {
+          "id": "d20261120b",
+          "date": "2026-11-20",
+          "text": "Domande della Bussola riscritte (v0.4): ogni criterio si misura come percentuale o conteggio sulle notizie del pool; l'AI etichetta le singole notizie, lo script calcola voti e punteggi"
+        },
+        {
+          "id": "d20261120c",
+          "date": "2026-11-20",
+          "text": "Pilastro Rischio ridotto a R1 Sicurezza legale con peso basso: noi riportiamo e attribuiamo ogni affermazione, quindi il disaccordo tra fonti non è un rischio. Tolto il bloccante B6"
+        },
+        {
+          "id": "d20261120d",
+          "date": "2026-11-20",
+          "text": "Nuovo criterio V5 Pluralità di visioni e dati: non premiato né penalizzato di per sé, pesa solo negli obiettivi che lo chiedono (nuovo obiettivo Di confronto)"
+        },
+        {
+          "id": "d20261120e",
+          "date": "2026-11-20",
+          "text": "Rilevanza = V1 (quanto se ne parla) + V4 (se sta crescendo), misurate sul pool invece che su Google Trends"
+        },
+        {
+          "id": "d20261120f",
+          "date": "2026-11-20",
+          "text": "Tempestività: a livello di argomento entra come F7 Margine di tempo; la tempestività della singola notizia va nella stazione Selezione notizie"
+        },
+        {
+          "id": "d20261120g",
+          "date": "2026-11-20",
+          "text": "Pesi per obiettivo rifatti da capo (prima proposta, da tarare con la calibrazione)"
+        },
+        {
+          "id": "d20261120h",
+          "date": "2026-11-20",
+          "text": "Per ogni stazione della Fabbrica ci sono due file: il documento di brainstorming (per Andrea) e un file di istruzioni separato per l'agente, scritto da Claude"
         }
       ],
       "files": [
@@ -548,6 +616,14 @@
           "type": "application/pdf",
           "path": "uploads/f1/u20261119b-Sistema-di-grading-argomenti-v0.1.pdf",
           "added": "2026-11-18T23:35:31.000Z"
+        },
+        {
+          "id": "u20261120a",
+          "name": "bussola-agente.md",
+          "size": 18473,
+          "type": "text/markdown",
+          "path": "uploads/f1/u20261120a-bussola-agente.md",
+          "added": "2026-11-20T17:36:15.000Z"
         }
       ]
     },
@@ -563,7 +639,13 @@
       "note": "",
       "log": [],
       "tasks": [],
-      "open": [],
+      "open": [
+        {
+          "id": "o20261120a",
+          "text": "Regole di tempestività della singola notizia: quando trattarla subito e quando scartarla perché superata",
+          "done": false
+        }
+      ],
       "decisions": [],
       "files": []
     },
@@ -944,6 +1026,28 @@
       "open": [],
       "decisions": [],
       "files": []
+    },
+    {
+      "id": "x20261120v",
+      "area": "content",
+      "group": "g-pro",
+      "name": "Vedetta",
+      "owner": "Agente",
+      "hint": "Agente quotidiano fuori dalla catena: alimenta il pool ogni giorno e segnala le notizie lampo",
+      "until": "",
+      "status": "todo",
+      "note": "",
+      "log": [],
+      "tasks": [],
+      "open": [],
+      "decisions": [
+        {
+          "id": "d20261120y",
+          "date": "2026-11-20",
+          "text": "Nasce la Vedetta (nome proposto): legge ogni giorno tutte le fonti, mette le notizie nel pool e segnala le notizie lampo (copertura improvvisa, impatto alto, margine stretto). All'inizio segnala ad Andrea e non pubblica da sola"
+        }
+      ],
+      "files": []
     }
   ],
   "log": [
@@ -1012,6 +1116,11 @@
       "id": "d20261119f",
       "date": "2026-11-19",
       "text": "Nasce il gruppo Fabbrica (Contenuti): un'attività per ogni stazione, dalla scelta degli argomenti al dopo-pubblicazione. Argomenti diventa Bussola; Affidabilità ed etichette diventa Controllo di sufficienza ed etichette; Regole editoriali diventa Scrittura e regole editoriali; Controllo qualità e correzioni diventa Revisione (le correzioni passano a Dopo la pubblicazione). Produzione diventa Strumenti comuni (Fonti, Motore AI)"
+    },
+    {
+      "id": "d20261120x",
+      "date": "2026-11-20",
+      "text": "Copertura: restiamo sull'Italia, ma entrano anche i grandi fatti del mondo che vale la pena raccontare (Stati Uniti, Russia, Unione europea, grandi aziende come Nvidia), anche senza aggancio italiano"
     }
   ],
   "archive": [
