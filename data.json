@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-24T15:01:10.221Z",
+  "updatedAt": "2026-11-25T16:52:19.835Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -837,6 +837,42 @@
           "files": [],
           "source": "chat",
           "created": 1795196202829
+        },
+        {
+          "id": "l20261123pa",
+          "date": "2026-11-23",
+          "text": "Controllate in automatico le fonti del pool (Fase 1 del test)",
+          "detail": "200 fonti controllate su 212 (escluse le 3 'No' e 9 voci che sono strumenti o senza link). RSS funzionante: 83 (solo ultimi giorni, utile per andare avanti, non per il passato). Sitemap fino a ottobre 2026: 91; fino a 12 mesi fa: 87. 10 fonti bloccano il nostro bot. Delle 31 fonti del test 16 hanno un metodo affidabile per ottobre; non recuperabili Reuters (robots.txt), Wired Italia (chiusa a fine giugno 2026), Guardian (archivio solo con registrazione), Protezione civile e Commissione UE (pagine caricate con JavaScript). GDELT ha un buco a inizio ottobre (circa 3-14) ed è lentissimo.",
+          "files": [],
+          "source": "chat",
+          "created": 1795625539835
+        },
+        {
+          "id": "l20261123pb",
+          "date": "2026-11-23",
+          "text": "Raccolti gli articoli di ottobre 2026 per le 31 fonti del test (Fase 2)",
+          "detail": "76.597 articoli da 26 fonti: 48.413 dalle sitemap, 27.779 dalle copie della home sulla Wayback Machine, 405 da GDELT (in 43 ore: in pratica GDELT non è utilizzabile). 14 fonti complete su tutto il mese; fonti senza archivio incomplete (ANSA circa un quinto, Askanews senza copie dopo il 20 ottobre, AP bloccata dal 17 al 24). Metà dei titoli ricavati dal link. BBC: titolo vero per 2.413 articoli su 9.791, recuperato dai feed RSS archiviati.",
+          "files": [],
+          "source": "chat",
+          "created": 1795625539835
+        },
+        {
+          "id": "l20261125pc",
+          "date": "2026-11-25",
+          "text": "Raggruppati gli articoli in notizie (Fase 3)",
+          "detail": "69.076 articoli con titolo leggibile diventano 44.134 notizie (soglia 0,70, articoli simili entro 3 giorni, una notizia dura al massimo 7 giorni). 6.380 notizie riprese da almeno 2 fonti, 196 da 10 o più (es. proteste degli studenti in Francia, il Papa al Gemelli, incidente ferroviario in Spagna, legge elettorale). Preparato un campione di 100 notizie per il controllo a mano.",
+          "files": [],
+          "source": "chat",
+          "created": 1795625539835
+        },
+        {
+          "id": "l20261125pd",
+          "date": "2026-11-25",
+          "text": "Primo raggruppamento automatico delle notizie per tema (Fase 4)",
+          "detail": "189 gruppi per tema più un gruppo 'da assegnare' con il 44% delle notizie (per ognuna c'è un gruppo suggerito). Proposti 9 argomenti grandi: Politica italiana; Esteri e conflitti; Economia, lavoro e conti pubblici; Cronaca e giustizia; Società e salute; Ambiente, clima e territorio; Scienza e tecnologia; Cultura e spettacolo; Sport. Proposti i nomi del primo blocco di gruppi (1-30): la revisione con Andrea continua.",
+          "files": [],
+          "source": "chat",
+          "created": 1795625539835
         }
       ],
       "tasks": [
@@ -856,8 +892,9 @@
           "priority": "alta",
           "due": "",
           "milestone": "",
-          "done": false,
-          "created": 1795196432937
+          "done": true,
+          "created": 1795196432937,
+          "doneAt": "2026-11-23"
         },
         {
           "id": "t20261120fb",
@@ -865,8 +902,9 @@
           "priority": "alta",
           "due": "",
           "milestone": "",
-          "done": false,
-          "created": 1795196432938
+          "done": true,
+          "created": 1795196432938,
+          "doneAt": "2026-11-23"
         },
         {
           "id": "t20261120fc",
@@ -900,11 +938,18 @@
         {
           "id": "o20261120fa",
           "text": "Approvare il metodo per dividere il pool: primo raggruppamento automatico dei titoli (gratuito, sul Mac), poi Claude rivede i gruppi e dà i nomi agli argomenti",
-          "done": false
+          "done": true,
+          "doneAt": "2026-11-25"
         },
         {
           "id": "o20261120fb",
           "text": "Definire il test: un mese (es. ottobre 2026) su circa 30 fonti di rilievo",
+          "done": true,
+          "doneAt": "2026-11-22"
+        },
+        {
+          "id": "o20261125pa",
+          "text": "Rivedere i 189 gruppi di notizie della Fase 4: nomi per tema, unioni, divisioni e gerarchia con i 9 argomenti grandi (proposta pronta; fermi al primo blocco, gruppi 1-30)",
           "done": false
         }
       ],
@@ -918,6 +963,21 @@
           "id": "d20261120fb",
           "date": "2026-11-20",
           "text": "I giornali a pagamento entrano nel pool solo con le parti pubbliche (titolo, data, anteprima), per contare quanto si parla di una notizia; il testo completo si prende solo da fonti aperte. Giornali regionali: bastano quelli già in lista"
+        },
+        {
+          "id": "d20261123pa",
+          "date": "2026-11-23",
+          "text": "Le fonti del test senza archivio (ANSA, Adnkronos, Askanews, AP, Corriere, Messaggero, Il Fatto, Repubblica, Fanpage) si usano lo stesso, segnate come incomplete"
+        },
+        {
+          "id": "d20261125pa",
+          "date": "2026-11-25",
+          "text": "Gli articoli BBC il cui titolo è solo un codice (7.376) restano nel database ma non entrano nel raggruppamento in notizie"
+        },
+        {
+          "id": "d20261125pb",
+          "date": "2026-11-25",
+          "text": "Per raggruppare gli articoli in notizie si usa la soglia di somiglianza 0,70"
         }
       ],
       "files": []
