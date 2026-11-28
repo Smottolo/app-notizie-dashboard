@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-28T10:02:25.857Z",
+  "updatedAt": "2026-11-28T10:02:29.674Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -376,7 +376,7 @@
       "owner": "Andrea",
       "hint": "Serbatoio degli argomenti + grading; ora obiettivo Facili",
       "until": "",
-      "status": "done",
+      "status": "doing",
       "note": "File Argomenti: https://claude.ai/artifact/JuJx6EG8SuXkAu7qDNokRz\nBussola v0.1 (grading degli argomenti): https://claude.ai/artifact/7eBqx6dGdtYQSoYR72xQtF\nProfilo della Bussola in uso: Prototipo (solo facilità e rischio, filtro perle, 3-5 argomenti palestra).\nDomande per più avanti (sport, esteri, cronaca giudiziaria, Vaticano, fact-checking, partiti e sondaggi; pesi, testate di confronto, Google Trends, soglie, calibrazione, script): sono nelle sezioni Domande aperte dei due documenti, tolte da Da decidere il 19/11.\nCopia di lavoro Bussola (dal 19/11, da qui si va alla v0.4): https://claude.ai/artifact/LVmzvEHGQZRiXECPreXGN3",
       "log": [
         {
@@ -626,7 +626,7 @@
           "added": "2026-11-20T17:36:15.000Z"
         }
       ],
-      "doneKind": "ended"
+      "doneKind": "paused"
     },
     {
       "id": "x20261119a",
