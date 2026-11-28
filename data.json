@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-28T10:37:36.314Z",
+  "updatedAt": "2026-11-28T10:40:55.210Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -1226,7 +1226,7 @@
     },
     {
       "id": "imx0a0nz4c1s",
-      "text": "Mettere nell'app una sezione dove fa vedere tipo quanti articoli sono stati scritti per argomento nel mese, sarebbe interessante far vedere al pubblico a cosa si vuole che dia più importanza.",
+      "text": "Mettere nell'app una sezione dove fa vedere tipo quanti articoli/servizi sono stati scritti per argomento nel mese, sarebbe interessante far vedere al pubblico a cosa si vuole che dia più importanza.",
       "done": false
     }
   ],
