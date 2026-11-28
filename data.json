@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-28T10:40:55.210Z",
+  "updatedAt": "2026-11-28T11:01:29.408Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -874,6 +874,15 @@
           "files": [],
           "source": "chat",
           "created": 1795625539835
+        },
+        {
+          "id": "l20261128pa",
+          "date": "2026-11-28",
+          "text": "Rivisti con Andrea i gruppi di notizie: 140 argomenti sotto 9 argomenti grandi",
+          "detail": "Approvati i 9 argomenti grandi (Politica italiana; Esteri e conflitti; Economia, lavoro e conti pubblici; Cronaca e giustizia; Società e salute; Ambiente, clima e territorio; Scienza e tecnologia; Cultura e spettacolo; Sport) e i nomi di tutti i 189 gruppi automatici. Uniti i doppioni, sciolti 17 gruppi senza tema, divisi 7 gruppi misti: risultato 140 argomenti. 22.679 notizie hanno un argomento, 21.455 (49%) restano da assegnare. Provata l'assegnazione automatica delle notizie da assegnare: troppi errori (circa metà sbagliate), annullata.",
+          "files": [],
+          "source": "chat",
+          "created": 1795863689408
         }
       ],
       "tasks": [
@@ -933,6 +942,15 @@
           "milestone": "",
           "done": false,
           "created": 1795196432941
+        },
+        {
+          "id": "t20261128pa",
+          "text": "Assegnare agli argomenti le 21.455 notizie del test rimaste 'da assegnare'",
+          "priority": "media",
+          "due": "",
+          "milestone": "",
+          "done": false,
+          "created": 1795863689408
         }
       ],
       "open": [
@@ -951,6 +969,12 @@
         {
           "id": "o20261125pa",
           "text": "Rivedere i 189 gruppi di notizie della Fase 4: nomi per tema, unioni, divisioni e gerarchia con i 9 argomenti grandi (proposta pronta; fermi al primo blocco, gruppi 1-30)",
+          "done": true,
+          "doneAt": "2026-11-28"
+        },
+        {
+          "id": "o20261128pa",
+          "text": "Trovare un metodo efficace per assegnare le notizie agli argomenti: forse un agente apposta, come quello della Selezione notizie, che legga i titoli e scelga l'argomento (deve funzionare anche sui 12 mesi, con centinaia di migliaia di notizie)",
           "done": false
         }
       ],
@@ -979,6 +1003,11 @@
           "id": "d20261125pb",
           "date": "2026-11-25",
           "text": "Per raggruppare gli articoli in notizie si usa la soglia di somiglianza 0,70"
+        },
+        {
+          "id": "d20261128pa",
+          "date": "2026-11-28",
+          "text": "Le 21.455 notizie del test senza argomento restano 'da assegnare' finché non c'è un metodo affidabile: l'assegnazione automatica per somiglianza sbaglia circa metà delle volte"
         }
       ],
       "files": []
