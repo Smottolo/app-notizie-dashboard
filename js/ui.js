@@ -166,7 +166,8 @@
   /** sfumatura in fondo alle sezioni che scorrono, finché c'è altro da vedere */
   function updateFade(el) {
     if (!el) return;
-    el.classList.toggle("fade", !isPhone() && el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+    const always = el.classList.contains("act-scroll");   // diario e decisioni dell'attività scorrono anche su iPhone
+    el.classList.toggle("fade", (always || !isPhone()) && el.scrollHeight - el.scrollTop - el.clientHeight > 4);
   }
   const ownerChip = (o) => `<span class="owner ${esc(o).toLowerCase()}">${OWNER_ICON[o] || ""}${esc(o)}</span>`;
   const radioSeg = (name, options, checked) => options.map(([v, l, icon = ""]) =>
@@ -345,7 +346,7 @@
                 <button class="add-btn show" id="log-submit">Annota</button>
               </div>
             </form>
-            <ol id="p-log" class="log-list"></ol>
+            <ol id="p-log" class="log-list scrollbox act-scroll"></ol>
           </section>
 
           <section class="card col-files" aria-labelledby="h-pfiles">
@@ -362,7 +363,7 @@
           <div class="col-side">
             <section class="card" aria-labelledby="h-pdec">
               <div class="card-head"><h2 id="h-pdec"><span class="h-icon">${ICON.gavel}</span>Decisioni</h2><span id="p-count-dec" class="count"></span></div>
-              <ul id="p-dec" class="rows decisions"></ul>
+              <ul id="p-dec" class="rows decisions scrollbox act-scroll"></ul>
               ${addForm({ kind: "ddec", placeholder: "Nuova decisione", date: true })}
             </section>
             <section class="card" aria-labelledby="h-popen">
@@ -547,7 +548,7 @@
       e.target.value = "";
       renderPending();
     });
-    for (const sel of ["#feed", "#open-list", "#archive-list"]) $(sel).addEventListener("scroll", (e) => updateFade(e.target), { passive: true });
+    for (const sel of ["#feed", "#open-list", "#archive-list", "#p-log", "#p-dec"]) $(sel).addEventListener("scroll", (e) => updateFade(e.target), { passive: true });
     $("#archive-box").addEventListener("toggle", () => renderArchive());
     phoneMq.addEventListener("change", () => render(lastData, lastStatus));
     window.addEventListener("resize", () => root.querySelectorAll(".track.scroll").forEach(roadFade), { passive: true });
@@ -1349,6 +1350,8 @@
     // note: si aggiornano solo quando cambi attività (mai mentre scrivi)
     const note = $("#p-note");
     if (shownNoteFor !== act.id) { note.value = d.note; shownNoteFor = act.id; }
+    updateFade($("#p-log"));
+    updateFade($("#p-dec"));
   }
 
   // ---------- foglio: modifica elemento ----------

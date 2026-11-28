@@ -1087,3 +1087,17 @@ a.att:hover { background: var(--fill-2); }
   .node.launch { flex: 1 1 auto; }
   .road-next { display: none; }
 }
+
+/* pagina attività: diario e decisioni scorrono dentro la card (Mac e iPhone) */
+.act-scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+#p-log { max-height: 460px; }
+#p-dec { max-height: 260px; }
+.act-scroll.fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 48px), transparent);
+}
+.act-scroll .log-day { position: sticky; top: 0; z-index: 2; background: var(--card); }
+@media (max-width: 700px) {
+  #p-log { max-height: 340px; }
+  #p-dec { max-height: 220px; }
+}
