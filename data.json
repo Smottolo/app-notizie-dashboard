@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-28T11:05:08.936Z",
+  "updatedAt": "2026-11-28T11:15:46.838Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -995,6 +995,11 @@
         {
           "id": "o20261128pc",
           "text": "Il pool dei 12 mesi deve contare anche le fonti incomplete (ANSA, Corriere ecc.), sapendo che per loro vediamo solo una parte delle notizie?",
+          "done": false
+        },
+        {
+          "id": "o20261128pd",
+          "text": "Ridimensionare il pool dei 12 mesi? Proposta: passato corto (settembre-novembre 2026, solo dalle fonti con sitemap, poche ore di computer) + raccolta quotidiana da RSS e sitemap da subito, così la finestra cresce da sola fino a 12 mesi senza scavare nel passato con la Wayback (lenta e incompleta). Prima chiarire di quanto passato ha bisogno la Bussola (V4 e temi stagionali)",
           "done": false
         }
       ],
