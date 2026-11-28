@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-28T11:01:29.408Z",
+  "updatedAt": "2026-11-28T11:05:08.936Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -883,6 +883,15 @@
           "files": [],
           "source": "chat",
           "created": 1795863689408
+        },
+        {
+          "id": "l20261128pb",
+          "date": "2026-11-28",
+          "text": "Chiuso il test del pool (ottobre 2026, 31 fonti) con il riepilogo finale",
+          "detail": "Il metodo regge per le fonti con sitemap (15 recuperate per intero), in parte per quelle senza archivio (11), 5 non recuperabili. 76.597 articoli → 44.134 notizie → 140 argomenti; 49% delle notizie ancora da assegnare. GDELT da togliere dai metodi. Stima per 12 mesi e tutte le fonti: 2,5-3,5 milioni di articoli, circa 5 GB, circa una settimana di computer (soprattutto Wayback). Consigli: metodo per assegnare gli argomenti, raccolta quotidiana dagli RSS da subito, verifica delle sitemap delle altre fonti.",
+          "files": [],
+          "source": "chat",
+          "created": 1795863908936
         }
       ],
       "tasks": [
@@ -922,8 +931,9 @@
           "priority": "alta",
           "due": "",
           "milestone": "",
-          "done": false,
-          "created": 1795196432939
+          "done": true,
+          "created": 1795196432939,
+          "doneAt": "2026-11-28"
         },
         {
           "id": "t20261120fd",
@@ -975,6 +985,16 @@
         {
           "id": "o20261128pa",
           "text": "Trovare un metodo efficace per assegnare le notizie agli argomenti: forse un agente apposta, come quello della Selezione notizie, che legga i titoli e scelga l'argomento (deve funzionare anche sui 12 mesi, con centinaia di migliaia di notizie)",
+          "done": false
+        },
+        {
+          "id": "o20261128pb",
+          "text": "Cominciare subito a raccogliere ogni giorno i titoli dagli RSS di tutte le fonti, così i mesi futuri sono completi anche per le fonti senza archivio?",
+          "done": false
+        },
+        {
+          "id": "o20261128pc",
+          "text": "Il pool dei 12 mesi deve contare anche le fonti incomplete (ANSA, Corriere ecc.), sapendo che per loro vediamo solo una parte delle notizie?",
           "done": false
         }
       ],
