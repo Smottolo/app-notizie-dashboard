@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updatedAt": "2026-11-28T10:02:29.674Z",
+  "updatedAt": "2026-11-28T10:37:36.314Z",
   "boardUrl": "https://claude.ai/artifact/2jvBgFw9sdqPfvrkvmT5s3",
   "launched": false,
   "areas": [
@@ -1222,6 +1222,11 @@
     {
       "id": "imwuto75t9yi",
       "text": "Cominciare a farsi una cultura sul giornalismo italiano ed estero per capire meglio dove sono i buchi, difetti e possibili miglioramenti.",
+      "done": false
+    },
+    {
+      "id": "imx0a0nz4c1s",
+      "text": "Mettere nell'app una sezione dove fa vedere tipo quanti articoli sono stati scritti per argomento nel mese, sarebbe interessante far vedere al pubblico a cosa si vuole che dia più importanza.",
       "done": false
     }
   ],
